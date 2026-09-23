@@ -1,0 +1,9 @@
+# 바깥쪽 IntelliJ 설정
+lungts_frontend/.idea/
+
+# 사용하지 않는 demo 프로젝트
+lungts_frontend/demo/
+
+# Firebase 설정
+lungts_frontend/lung_ts/android/app/google-services.json
+lungts_frontend/lung_ts/ios/Runner/GoogleService-Info.plist
