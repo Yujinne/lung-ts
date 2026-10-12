@@ -14,6 +14,14 @@ public class AuthController {
 
     private final UserService userService;
 
+    @PostMapping("/signup/validate")
+    public ResponseEntity<String> validateSignup(
+            @RequestBody SignupRequest request
+    ) {
+        userService.validateSignup(request);
+        return ResponseEntity.ok("회원가입 조건 확인 완료");
+    }
+
     @PostMapping("/signup")
     public ResponseEntity<String> signup(@RequestBody SignupRequest request) {
         userService.signup(request);
