@@ -77,4 +77,32 @@ public class UserMedicineController {
                 .status(HttpStatus.CREATED)
                 .body(responses);
     }
+
+    // 약 활성화
+    @PatchMapping("/{medicineId}/activate")
+    public ResponseEntity<Void> activate(
+            Authentication authentication,
+            @PathVariable Long medicineId
+    ) {
+        userMedicineService.activate(
+                authentication.getName(),
+                medicineId
+        );
+
+        return ResponseEntity.noContent().build();
+    }
+
+    // 내 약 목록에서 삭제 (논리 삭제)
+    @DeleteMapping("/{medicineId}")
+    public ResponseEntity<Void> delete(
+            Authentication authentication,
+            @PathVariable Long medicineId
+    ) {
+        userMedicineService.delete(
+                authentication.getName(),
+                medicineId
+        );
+
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -28,6 +28,68 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
+
+  Future<void> _showMedicineLaterDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          title: const Column(
+            children: [
+              Icon(
+                Icons.medication_outlined,
+                size: 42,
+                color: Color(0xFF377DCE),
+              ),
+              SizedBox(height: 16),
+              Text(
+                '약은 나중에도 등록할 수 있어요!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF202936),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            '마이페이지 → 약 정보 수정에서\n'
+                '언제든지 복용 중인 약을 추가할 수 있어요.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.6,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF377DCE),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('확인'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
   Future<void> _signUp() async {
     final name = userNameController.text.trim();
     final email = emailController.text.trim();
@@ -171,8 +233,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.pop(dialogContext, false);
+                    await _showMedicineLaterDialog();
                   },
                   child: const Text('아니요, 다음에 할게요'),
                 ),
@@ -187,6 +250,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     // X를 누르면 회원가입하지 않고 입력 화면 유지
     if (registerMedicine == null) return;
+
+    if (registerMedicine == false) {
+      await _showMedicineLaterDialog();
+      if (!mounted) return;
+    }
 
     // 3. 팝업에서 선택한 후 실제 회원가입
     try {
@@ -362,116 +430,134 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  InputDecoration _inputDecoration(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+      prefixIcon: Icon(icon, color: const Color(0xFF9CA3AF), size: 22),
+      filled: true,
+      fillColor: const Color(0xFFF7F8FA),
+      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF377DCE), width: 1.5),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // 뒤로가기 버튼
-            Positioned(
-              top: 8,
-              left: 8,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                color: Colors.black,
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-            // 나머지 UI
-            Center(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    const Text(
-                      '회원가입',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+      backgroundColor: const Color(0xFFF7F8FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF7F8FA),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF202936)),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 430),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.07),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 30),
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        '회원가입',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF202936),
+                        ),
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          TextField(
-                            controller: userNameController,
-                            decoration: InputDecoration(
-                              labelText: '사용자 이름',
-                              labelStyle: TextStyle(color: Colors.black),
-                              border: const OutlineInputBorder(),
-                            ),
-                            textInputAction: TextInputAction.next,
-                            onSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: emailController,
-                            decoration: InputDecoration(
-                              labelText: '이메일',
-                              labelStyle: TextStyle(color: Colors.black),
-                              border: const OutlineInputBorder(),
-                            ),
-                            textInputAction: TextInputAction.next,
-                            onSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: passwordController,
-                            obscureText: true,
-                            decoration: InputDecoration(
-                              labelText: '비밀번호',
-                              labelStyle: TextStyle(color: Colors.black),
-                              border: const OutlineInputBorder(),
-                            ),
-                            textInputAction: TextInputAction.done,
-                            onEditingComplete: _signUp,
-                          ),
-                          const SizedBox(height: 24),
-
-                          buildDiseaseSelector(),
-
-                          const SizedBox(height: 24),
-
-                          ElevatedButton(
-                            onPressed: _signUp,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF3678C8),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text('Sign Up', style: TextStyle(fontSize: 16)),
-                          ),
-                        ],
+                      const SizedBox(height: 8),
+                      const Text(
+                        '정보를 입력하고 계정을 만들어 주세요.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: Color(0xFF7A8492)),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 28),
+                      TextField(
+                        controller: userNameController,
+                        textInputAction: TextInputAction.next,
+                        onSubmitted: (_) => FocusScope.of(context).nextFocus(),
+                        decoration: _inputDecoration('이름', Icons.person_outline),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        onSubmitted: (_) => FocusScope.of(context).nextFocus(),
+                        decoration: _inputDecoration('이메일', Icons.mail_outline),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        onEditingComplete: _signUp,
+                        decoration: _inputDecoration('비밀번호', Icons.lock_outline),
+                      ),
+                      const SizedBox(height: 26),
+                      const Divider(color: Color(0xFFE9EDF2), height: 1),
+                      const SizedBox(height: 20),
+                      buildDiseaseSelector(),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _signUp,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF377DCE),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            '회원가입',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

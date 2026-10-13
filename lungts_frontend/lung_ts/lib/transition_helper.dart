@@ -2,17 +2,26 @@
 import 'package:lung_ts/app_colors.dart';
 import 'package:flutter/material.dart';
 
-/// 오른쪽에서 왼쪽으로 슬라이드 전환
-Route slideFromRight(Widget page) {
-  return PageRouteBuilder(
+// 오른쪽에서 왼쪽으로 슬라이드 전환
+
+Route<T> slideFromRight<T>(Widget page) {
+  return PageRouteBuilder<T>(
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      const begin = Offset(1.0, 0.0);
-      const end = Offset.zero;
-      const curve = Curves.ease;
-      final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-      return SlideTransition(position: animation.drive(tween), child: child);
+      final tween = Tween<Offset>(
+        begin: const Offset(1.0, 0.0),
+        end: Offset.zero,
+      ).chain(
+        CurveTween(curve: Curves.easeInOut),
+      );
+
+      return SlideTransition(
+        position: animation.drive(tween),
+        child: child,
+      );
     },
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 300),
   );
 }
 

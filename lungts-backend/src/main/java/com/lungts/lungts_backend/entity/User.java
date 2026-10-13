@@ -48,6 +48,14 @@ public class User {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
+    // 회원 탈퇴 여부
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+    // 회원 탈퇴 일시
+    private LocalDateTime deletedAt;
+
     public void updateName(String name) {
         this.name = name;
     }
@@ -63,5 +71,11 @@ public class User {
 
     public void updatePassword(String encodedPassword) {
         this.password = encodedPassword;
+    }
+
+    // 회원 탈퇴 처리 메서드
+    public void withdraw() {
+        this.deleted = true;
+        this.deletedAt = LocalDateTime.now();
     }
 }

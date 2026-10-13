@@ -46,12 +46,44 @@ class _SignInScreenState extends State<SignInScreen> {
 
         if (!mounted) return;
 
+
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 450),
+            reverseTransitionDuration: const Duration(milliseconds: 300),
+
+            pageBuilder: (context, animation, secondaryAnimation) {
+              return const HomeScreen();
+            },
+
+            transitionsBuilder: (
+                context,
+                animation,
+                secondaryAnimation,
+                child,
+                ) {
+              final fadeAnimation = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              );
+
+              final slideAnimation = Tween<Offset>(
+                begin: const Offset(0, 0.06),
+                end: Offset.zero,
+              ).animate(fadeAnimation);
+
+              return FadeTransition(
+                opacity: fadeAnimation,
+                child: SlideTransition(
+                  position: slideAnimation,
+                  child: child,
+                ),
+              );
+            },
           ),
         );
+
       } else {
         if (!mounted) return;
 
@@ -73,97 +105,193 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.paleBlueBg,
+      backgroundColor: const Color(0xFFF7F8FA),
       body: Center(
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // 로고
-              Image.asset('assets/logo.png', height: 100),
-
-              const SizedBox(height: 20),
-
-              // 하얀 카드 박스
-              Container(
-                height: 270,
-                margin: const EdgeInsets.symmetric(horizontal: 30),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
+          padding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 30,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 430),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // 로고
+                Image.asset(
+                  'assets/logo.png',
+                  height: 100,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextField(
-                      controller: emailController,
-                      decoration: InputDecoration(
-                        labelText: '이메일',
-                        labelStyle: TextStyle(color: AppColors.darkBlue),
-                        border: const OutlineInputBorder(),
+
+                const SizedBox(height: 28),
+
+                // 로그인 카드
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.07),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                      textInputAction: TextInputAction.next, // 다음 입력으로 이동
-                      onSubmitted: (_) => FocusScope.of(context).nextFocus(), // 포커스를 다음 필드로
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: passwordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: '비밀번호',
-                        labelStyle: TextStyle(color: AppColors.darkBlue),
-                        border: const OutlineInputBorder(),
-                      ),
-                      textInputAction: TextInputAction.done, // 완료 키 지정
-                      onSubmitted: (_) => _signIn(), // 엔터 누르면 로그인 실행
-                    ),
-                    const SizedBox(height: 40),
-                    ElevatedButton(
-                      onPressed: _signIn,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.lightBlueBg,
-                        foregroundColor: AppColors.darkBlue,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 이메일
+                      TextField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        onSubmitted: (_) =>
+                            FocusScope.of(context).nextFocus(),
+                        decoration: InputDecoration(
+                          hintText: '이메일',
+                          hintStyle: const TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 14,
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.person_outline,
+                            color: Color(0xFF9CA3AF),
+                            size: 22,
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFF7F8FA),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 17,
+                            horizontal: 16,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF377DCE),
+                              width: 1.5,
+                            ),
+                          ),
                         ),
                       ),
-                      child: const Text('Sign In', style: TextStyle(fontSize: 16)),
-                    ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 15),
+                      const SizedBox(height: 16),
 
-              // Create account
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SignUpScreen()),
-                  );
-                },
-                child: Text(
-                  'Create an Account',
-                  style: TextStyle(
-                    color: AppColors.darkBlue,
-                    fontSize: 14,
-                    decoration: TextDecoration.underline,
+                      // 비밀번호
+                      TextField(
+                        controller: passwordController,
+                        obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _signIn(),
+                        decoration: InputDecoration(
+                          hintText: '비밀번호',
+                          hintStyle: const TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 14,
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.lock_outline,
+                            color: Color(0xFF9CA3AF),
+                            size: 22,
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFF7F8FA),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 17,
+                            horizontal: 16,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF377DCE),
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // 로그인 버튼
+                      SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _signIn,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                            const Color(0xFF377DCE),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            '로그인',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 24),
+
+                // 회원가입
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SignUpScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    '회원가입',
+                    style: TextStyle(
+                      color: Color(0xFF6B7280),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

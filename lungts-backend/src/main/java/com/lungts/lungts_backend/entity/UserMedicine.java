@@ -3,8 +3,6 @@ package com.lungts.lungts_backend.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -33,12 +31,14 @@ public class UserMedicine {
     @Column(nullable = false)
     private String medicineName;
 
-    // 복용 단위 (puff, 정, mL 등)
-    private String doseUnit;
-
     // 현재 사용 중인지
     @Builder.Default
     private boolean active = true;
+
+    // 약 목록에서 삭제된 약인지
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean deleted = false;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

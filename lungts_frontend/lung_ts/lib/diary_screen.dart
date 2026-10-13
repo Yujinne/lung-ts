@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:lung_ts/app_colors.dart';
 
 
 class DiaryScreen extends StatefulWidget {
@@ -55,12 +54,58 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
 
   Future<void> _selectDate() async {
-    DateTime? pickedDate = await showDatePicker(
+    final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
+
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF377DCE),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF202936),
+            ),
+
+            dialogTheme: DialogThemeData(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+
+            datePickerTheme: DatePickerThemeData(
+              backgroundColor: Colors.white,
+
+              // 상단 배경
+              headerBackgroundColor: const Color(0xFF377DCE),
+              headerForegroundColor: Colors.white,
+              cancelButtonStyle: TextButton.styleFrom(
+                foregroundColor: Colors.black,
+              ),
+              confirmButtonStyle: TextButton.styleFrom(
+                foregroundColor: Colors.black,
+              ),
+
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+
+              dayShape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
+
     if (pickedDate != null && pickedDate != selectedDate) {
       setState(() {
         selectedDate = pickedDate;
@@ -69,10 +114,38 @@ class _DiaryScreenState extends State<DiaryScreen> {
   }
 
   Future<void> _selectTime() async {
-    TimeOfDay? pickedTime = await showTimePicker(
+    final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
       initialTime: selectedTime,
+
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF377DCE),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF202936),
+            ),
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: Colors.white,
+              dialBackgroundColor: const Color(0xFFF0F5FC),
+              dialHandColor: const Color(0xFF377DCE),
+              dialTextColor: const Color(0xFF202936),
+              hourMinuteColor: const Color(0xFFEAF3FF),
+              hourMinuteTextColor: const Color(0xFF202936),
+              dayPeriodColor: const Color(0xFFEAF3FF),
+              dayPeriodTextColor: const Color(0xFF377DCE),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
+
     if (pickedTime != null && pickedTime != selectedTime) {
       setState(() {
         selectedTime = pickedTime;
@@ -178,237 +251,270 @@ class _DiaryScreenState extends State<DiaryScreen> {
   }
 
   @override
+  void dispose() {
+    memoController.dispose();
+    super.dispose();
+  }
+
+  Widget _sectionCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _sectionTitle(IconData icon, String title) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF377DCE), size: 21),
+        const SizedBox(width: 9),
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF202936))),
+      ],
+    );
+  }
+
+  Widget _dateTimeTile({required IconData icon, required String text, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7F8FA),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 17, color: const Color(0xFF377DCE)),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _symptomButton(String symptom) {
+    final selected = selectedSymptoms.contains(symptom);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        setState(() {
+          if (selected) {
+            selectedSymptoms.remove(symptom);
+          } else {
+            selectedSymptoms.add(symptom);
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 46,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFFEAF3FF)
+              : const Color(0xFFF7F8FA),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF377DCE)
+                : const Color(0xFFE9EDF2),
+          ),
+        ),
+        child: Text(
+          symptom,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: selected
+                ? FontWeight.w600
+                : FontWeight.w400,
+            color: selected
+                ? const Color(0xFF377DCE)
+                : const Color(0xFF202936),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.paleBlueBg,
+      backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
+        backgroundColor: const Color(0xFFF7F8FA),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF202936)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("일기 작성"),
+        title: Text(widget.initialData == null ? '일기 작성' : '일기 수정',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF202936))),
+        centerTitle: true,
       ),
-
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SafeArea(
         child: Column(
           children: [
-            // 증상일시
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 6,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.event_note, size: 20, color: Colors.black54),
-                      SizedBox(width: 8),
-                      Text("증상 일시", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: _selectDate,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: AppColors.paleBlueBg,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.calendar_today, size: 18, color: Colors.black54),
-                                const SizedBox(width: 8),
-                                Text(
-                                  DateFormat('yyyy년 MM월 dd일').format(selectedDate),
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: _selectTime,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: AppColors.paleBlueBg,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.access_time, size: 18, color: Colors.black54),
-                                const SizedBox(width: 8),
-                                Text(
-                                  selectedTime.format(context),
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 증상종류
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 6,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.favorite_border, size: 20, color: Colors.black54),
-                      SizedBox(width: 8),
-                      Text("증상 종류", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // 두 줄로 나누어 가운데 정렬
-                  Center(
-                    child: Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      alignment: WrapAlignment.center,
-                      children: List.generate(symptoms.length, (index) {
-                        final symptom = symptoms[index];
-                        final isSelected = selectedSymptoms.contains(symptom);
-
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              isSelected
-                                  ? selectedSymptoms.remove(symptom)
-                                  : selectedSymptoms.add(symptom);
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                            decoration: BoxDecoration(
-                              color: AppColors.paleBlueBg,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                                  color: isSelected ? AppColors.primaryBlue : Colors.grey[500],
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  symptom,
-                                  style: const TextStyle(fontSize: 16, color: Colors.black),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-
-                  ),
-                ],
-              ),
-            ),
-
-
-            const SizedBox(height: 16),
-
-            // 메모 (화면 남은 공간 꽉 채우기)
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 6,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
-                ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _sectionTitle(Icons.event_note_outlined, '증상 일시'),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(child: _dateTimeTile(
+                                    icon: Icons.calendar_today_outlined,
+                                    text: DateFormat('yyyy.MM.dd').format(selectedDate),
+                                    onTap: _selectDate,
+                                  )),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: _dateTimeTile(
+                                    icon: Icons.access_time_outlined,
+                                    text: selectedTime.format(context),
+                                    onTap: _selectTime,
+                                  )),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _sectionCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _sectionTitle(Icons.favorite_border, '증상 종류'),
+                              const SizedBox(height: 6),
+                              const Text('해당하는 증상을 모두 선택해 주세요.',
+                                  style: TextStyle(fontSize: 12, color: Color(0xFF7A8492))),
+                              const SizedBox(height: 16),
+                              Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      for (int i = 0; i < 3; i++) ...[
+                                        SizedBox(
+                                          width: 90,
+                                          child: _symptomButton(symptoms[i]),
+                                        ),
+                                        if (i < 2) const SizedBox(width: 9),
+                                      ],
+                                    ],
+                                  ),
 
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: const [
-                        Icon(Icons.edit_note, size: 22, color: Colors.black54),
-                        SizedBox(width: 8),
-                        Text("메모", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 9),
+
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      for (int i = 3; i < 7; i++) ...[
+                                        SizedBox(
+                                          width: 90,
+                                          child: _symptomButton(symptoms[i]),
+                                        ),
+                                        if (i < 6) const SizedBox(width: 9),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _sectionCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _sectionTitle(Icons.edit_note_outlined, '메모'),
+                              const SizedBox(height: 14),
+                              TextField(
+                                controller: memoController,
+                                minLines: 5,
+                                maxLines: 8,
+                                textAlignVertical: TextAlignVertical.top,
+                                decoration: InputDecoration(
+                                  hintText: '증상이 발생한 원인이나 상태를 기록해 주세요.',
+                                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+                                  filled: true,
+                                  fillColor: const Color(0xFFF7F8FA),
+                                  contentPadding: const EdgeInsets.all(16),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(color: Color(0xFF377DCE), width: 1.5)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: memoController,
-                        maxLines: null,
-                        expands: true,
-                        decoration: InputDecoration(
-                          hintText: "증상이 발생한 원인은 무엇일까요?",
-                          border: OutlineInputBorder(borderRadius: BorderRadius
-                              .circular(8)),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // 저장 버튼
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _saveDiaryEntry,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.lightBlueBg,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+              color: const Color(0xFFF7F8FA),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _saveDiaryEntry,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF377DCE),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('저장', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
                 ),
-                child: const Text(
-                    "저장", style: TextStyle(fontSize: 18, color: Colors.black)),
               ),
             ),
           ],

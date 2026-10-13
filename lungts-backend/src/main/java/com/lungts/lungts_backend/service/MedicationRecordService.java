@@ -60,11 +60,6 @@ public class MedicationRecordService {
             throw new IllegalArgumentException("사용 중단한 약은 새로 기록할 수 없습니다.");
         }
 
-        if (medicine.getDoseUnit() == null
-                || medicine.getDoseUnit().isBlank()) {
-            throw new IllegalArgumentException("약의 복용 단위가 설정되지 않았습니다.");
-        }
-
         return medicine;
     }
 
@@ -88,7 +83,6 @@ public class MedicationRecordService {
                 .userMedicine(medicine)
                 .takenAt(request.getTakenAt())
                 .dose(request.getDose())
-                .doseUnit(medicine.getDoseUnit())
                 .build();
 
         return MedicationRecordResponse.from(
@@ -139,7 +133,6 @@ public class MedicationRecordService {
         record.setUserMedicine(medicine);
         record.setTakenAt(request.getTakenAt());
         record.setDose(request.getDose());
-        record.setDoseUnit(medicine.getDoseUnit());
 
         return MedicationRecordResponse.from(record);
     }

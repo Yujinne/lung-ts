@@ -8,5 +8,4 @@ import lombok.NoArgsConstructor;
 public class UserMedicineRequest {
 
     private String medicineCode;
-    private String doseUnit;
 }

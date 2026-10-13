@@ -3,20 +3,28 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
-import 'package:lung_ts/transition_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:lung_ts/app_colors.dart';
+import 'package:lung_ts/transition_helper.dart';
 
-import 'act_test_screen.dart'; // 검사 화면 import
+import 'act_test_screen.dart';
 
 class ActScreen extends StatefulWidget {
+  const ActScreen({super.key});
+
   @override
   State<ActScreen> createState() => _ActScreenState();
 }
 
 class _ActScreenState extends State<ActScreen> {
-  List<Map<String, dynamic>> previousResults = []; // 최대 2개 저장
-  List<Map<String, dynamic>> allResults = [];     // 전체 검사 기록 저장
+  static const Color _blue = Color(0xFF377DCE);
+  static const Color _dark = Color(0xFF202936);
+  static const Color _background = Color(0xFFF7F8FA);
+  static const Color _grey = Color(0xFF7A8492);
+
+  List<Map<String, dynamic>> previousResults = [];
+  List<Map<String, dynamic>> allResults = [];
+
+  bool _loading = true;
 
   @override
   void initState() {
@@ -40,91 +48,368 @@ class _ActScreenState extends State<ActScreen> {
         },
       );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-
-        final results = data.map((item) {
-          return {
-            'score': item['score'],
-            'date': DateTime.parse(item['createdAt']),
-          };
-        }).toList();
-
-        if (!mounted) return;
-
-        setState(() {
-          allResults = List<Map<String, dynamic>>.from(results);
-
-          // 메인 화면에는 최신 2개만 표시
-          previousResults = allResults.take(2).toList();
-        });
-
-        print('ACT 최근 결과: $previousResults');
-      } else {
+      if (response.statusCode != 200) {
         throw Exception('ACT 조회 실패: ${response.statusCode}');
       }
+
+      final List<dynamic> data =
+      jsonDecode(utf8.decode(response.bodyBytes));
+
+      final results = data.map<Map<String, dynamic>>((item) {
+        return {
+          'score': (item['score'] as num).toInt(),
+          'date': DateTime.parse(item['createdAt'].toString()),
+        };
+      }).toList();
+
+      // 최신 검사부터 표시
+      results.sort(
+            (a, b) => (b['date'] as DateTime)
+            .compareTo(a['date'] as DateTime),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        allResults = results;
+        previousResults = results.take(2).toList();
+        _loading = false;
+      });
     } catch (e) {
-      print('ACT 결과 조회 실패: $e');
+      debugPrint('ACT 결과 조회 실패: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('검사 결과를 불러오지 못했습니다.'),
+        ),
+      );
     }
   }
 
-  // 전체 검사 기록 팝업
+  String _scoreLabel(int score) {
+    if (score >= 20) return '조절 양호';
+    if (score >= 16) return '조절 미흡';
+    return '조절 매우 미흡';
+  }
+
+  Color _scoreColor(int score) {
+    if (score >= 20) return _blue;
+    if (score >= 16) return const Color(0xFFD28A33);
+    return const Color(0xFFD65C5C);
+  }
+
+  Widget _heading(IconData icon, String title) {
+    return Row(
+      children: [
+        Icon(icon, color: _blue, size: 21),
+        const SizedBox(width: 9),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: _dark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _card({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildScoreCard(Map<String, dynamic> result) {
+    final DateTime date = result['date'] as DateTime;
+    final int score = result['score'] as int;
+    final color = _scoreColor(score);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 16,
+      ),
+      decoration: BoxDecoration(
+        color: _background,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Text(
+            DateFormat('yyyy.MM.dd').format(date),
+            style: const TextStyle(
+              fontSize: 12,
+              color: _grey,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '$score점',
+            style: TextStyle(
+              fontSize: 25,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _scoreLabel(score),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentResults() {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _heading(Icons.bar_chart_rounded, '최근 검사 결과'),
+          const SizedBox(height: 18),
+
+          if (_loading)
+            const Center(
+              child: CircularProgressIndicator(color: _blue),
+            )
+          else if (previousResults.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: Text(
+                  '아직 검사 기록이 없습니다.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _grey,
+                  ),
+                ),
+              ),
+            )
+          else
+            Row(
+              children: [
+                for (int i = 0; i < previousResults.length; i++) ...[
+                  Expanded(
+                    child: _buildScoreCard(previousResults[i]),
+                  ),
+                  if (i < previousResults.length - 1)
+                    const SizedBox(width: 10),
+                ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoreGuide(
+      String range,
+      String description,
+      Color color,
+      ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          range,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _dark,
+          ),
+        ),
+        Text(
+          description,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGuideCard() {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _heading(Icons.assignment_outlined, 'ACT 검사 안내'),
+          const SizedBox(height: 16),
+
+          const Text(
+            'ACT(천식 조절 검사)는 12세 이상 천식 환자가 '
+                '최근 4주 동안 천식이 얼마나 잘 조절되었는지 '
+                '확인하는 검사입니다.',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.7,
+              color: _dark,
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _background,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                _buildScoreGuide(
+                  '20~25점',
+                  '잘 조절됨',
+                  _blue,
+                ),
+                const SizedBox(height: 12),
+                const Divider(
+                  height: 1,
+                  color: Color(0xFFE9EDF2),
+                ),
+                const SizedBox(height: 12),
+                _buildScoreGuide(
+                  '16~19점',
+                  '조절 미흡',
+                  const Color(0xFFD28A33),
+                ),
+                const SizedBox(height: 12),
+                const Divider(
+                  height: 1,
+                  color: Color(0xFFE9EDF2),
+                ),
+                const SizedBox(height: 12),
+                _buildScoreGuide(
+                  '5~15점',
+                  '조절 매우 미흡',
+                  const Color(0xFFD65C5C),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          const Text(
+            '천식이 잘 조절되지 않는 경우 약물 사용 방법과 '
+                '현재 치료가 적절한지 의료진과 확인하는 것이 좋습니다.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.6,
+              color: _grey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showActHistory() {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: const Text(
             'ACT 검사 내역',
             style: TextStyle(
-              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: _dark,
             ),
           ),
           content: SizedBox(
             width: double.maxFinite,
             child: allResults.isEmpty
-                ? const Text('검사 내역이 없습니다.')
+                ? const Text(
+              '검사 내역이 없습니다.',
+              style: TextStyle(color: _grey),
+            )
                 : ListView.separated(
               shrinkWrap: true,
               itemCount: allResults.length,
-              separatorBuilder: (context, index) =>
-              const Divider(),
+              separatorBuilder: (_, __) =>
+              const Divider(
+                color: Color(0xFFE9EDF2),
+              ),
               itemBuilder: (context, index) {
                 final result = allResults[index];
 
-                final DateTime date = result['date'];
-                final int score = result['score'];
+                final date = result['date'] as DateTime;
+                final score = result['score'] as int;
 
-                final String formattedDate =
-                DateFormat('yyyy년 MM월 dd일').format(date);
-
-                return Row(
-                  mainAxisAlignment:
-                  MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      formattedDate,
-                      style: const TextStyle(fontSize: 15),
-                    ),
-                    Text(
-                      '$score점',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: score >= 20
-                            ? Colors.indigo
-                            : Colors.redAccent,
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 7,
+                  ),
+                  child: Row(
+                    mainAxisAlignment:
+                    MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        DateFormat('yyyy.MM.dd').format(date),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: _dark,
+                        ),
                       ),
-                    ),
-                  ],
+                      Text(
+                        '$score점',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: _scoreColor(score),
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('닫기'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                '닫기',
+                style: TextStyle(
+                  color: _blue,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         );
@@ -132,164 +417,120 @@ class _ActScreenState extends State<ActScreen> {
     );
   }
 
-  Widget _buildScoreCard(DateTime? date, int score, Color color) {
-    String formattedDate = date != null
-        ? DateFormat('yyyy년 MM월 dd일').format(date)
-        : '0000년 00월 00일';
-
-    return Column(
-      children: [
-        Text(formattedDate, style: TextStyle(fontSize: 16, color: Colors.grey)),
-        SizedBox(height: 4),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            '$score점',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ],
+  Future<void> _startActTest() async {
+    final result = await Navigator.push(
+      context,
+      slideFromRight(ActTestScreen()),
     );
+
+    if (!mounted) return;
+
+    if (result is Map<String, dynamic>) {
+      await _loadActResults();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBlue, // 배경색 설정
+      backgroundColor: _background,
+
       appBar: AppBar(
+        backgroundColor: _background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        title: const Text(
+          'ACT 천식 조절 검사',
+          style: TextStyle(
+            color: _dark,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: _dark,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("ACT 천식 조절 검사"),
         actions: [
           IconButton(
             onPressed: _showActHistory,
             tooltip: '검사 내역',
-            icon: const Icon(Icons.history),
+            icon: const Icon(
+              Icons.history,
+              color: _dark,
+            ),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (previousResults.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  vertical: 20.0, horizontal: 16.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 6,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
-                ),
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: previousResults
-                      .asMap()
-                      .entries
-                      .map((entry) {
-                    final result = entry.value;
-                    final score = result['score'];
-                    final color = score >= 20 ? Colors.indigo : Colors
-                        .redAccent;
-                    return _buildScoreCard(result['date'], score, color);
-                  })
-                      .toList(),
-                ),
-              ),
-            ),
 
-          // 설명 컨테이너 확장
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 6,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  12, 12, 12, 20,
                 ),
-                padding: EdgeInsets.all(16),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'ACT 천식 조절 검사',
-                        style: TextStyle(
-                            fontSize: 30, fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        'ACT(천식 조절 검사)는 천식을 알고 있는 사람들(12세 이상)이 '
-                            '천식을 얼마나 조절하고 있는지 평가하기 위한 검사입니다.\n'
-                            '각 질문에 표시한 점수를 더하여 천식 조절 검사의 총점을 계산할 수 있습니다.',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                      SizedBox(height: 20),
-                      Text(
-                        '• 20점 이상: 천식이 잘 조절되고 있습니다.',
-                        style: TextStyle(fontSize: 14, color: Colors.indigo),
-                      ),
-                      Text(
-                        '• 19점 미만: 천식이 잘 조절되지 않고 있습니다.\n\n'
-                            '❗ 천식이 잘 조절되지 않고 있을 경우:\n'
-                            '약물을 올바른 방법으로 사용하고 있는지 또는\n'
-                            '현재의 흡입 수준이 적절한지 다시 확인할 필요가 있습니다.',
-                        style: TextStyle(fontSize: 14, color: Colors.redAccent),
-                      ),
-                    ],
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 600,
+                    ),
+                    child: Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment.stretch,
+                      children: [
+                        _buildRecentResults(),
+                        const SizedBox(height: 16),
+                        _buildGuideCard(),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // 검사 시작 버튼
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(16),
-            child: ElevatedButton(
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  slideFromRight(ActTestScreen()),
-                );
-                if (result is Map<String, dynamic>) {
-                  await _loadActResults(); // Firestore에서 최신 결과 다시 불러오기
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.lightBlueBg, // 배경색
-                padding: EdgeInsets.symmetric(vertical: 16),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                12, 12, 12, 14,
               ),
-              child: Text(
-                '검사 시작',
-                style: TextStyle(fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 600,
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _startActTest,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _blue,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                          BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        '검사 시작',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

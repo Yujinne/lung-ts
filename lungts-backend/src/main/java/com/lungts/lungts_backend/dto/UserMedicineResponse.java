@@ -11,7 +11,6 @@ public class UserMedicineResponse {
     private Long id;
     private String medicineCode;
     private String medicineName;
-    private String doseUnit;
     private boolean active;
 
     public static UserMedicineResponse from(UserMedicine medicine) {
@@ -19,7 +18,6 @@ public class UserMedicineResponse {
                 .id(medicine.getId())
                 .medicineCode(medicine.getMedicineCode())
                 .medicineName(medicine.getMedicineName())
-                .doseUnit(medicine.getDoseUnit())
                 .active(medicine.isActive())
                 .build();
     }

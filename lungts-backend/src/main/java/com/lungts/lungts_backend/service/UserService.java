@@ -108,6 +108,10 @@ public class UserService {
                 .orElseThrow(() ->
                         new IllegalArgumentException("존재하지 않는 이메일입니다."));
 
+        if (user.isDeleted()) {
+            throw new IllegalArgumentException("탈퇴한 계정입니다.");
+        }
+
         if (!passwordEncoder.matches(
                 request.getPassword(),
                 user.getPassword())) {
@@ -231,5 +235,20 @@ public class UserService {
 
         // 8. 비밀번호 변경
         user.updatePassword(encodedPassword);
+    }
+
+    // 회원 탈퇴
+    @Transactional
+    public void withdraw(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        if (user.isDeleted()) {
+            throw new IllegalArgumentException("이미 탈퇴한 회원입니다.");
+        }
+
+        user.withdraw();
     }
 }

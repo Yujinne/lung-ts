@@ -123,21 +123,17 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Image.asset(
               'assets/logo.png',
-              height: 40,
+              height: 55,
               fit: BoxFit.contain,
             ),
             IconButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const MyPageScreen(),
-                  ),
-                );
+                openScreen(const MyPageScreen());
               },
-              icon: Image.asset(
-                'assets/mypage.png',
-                height: 32,
+              icon: const Icon(
+                Icons.account_circle_outlined,
+                color: Color(0xFF6B7280),
+                size: 30,
               ),
             ),
           ],

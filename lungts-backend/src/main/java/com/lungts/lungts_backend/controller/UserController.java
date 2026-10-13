@@ -68,4 +68,14 @@ public class UserController {
                 Map.of("message", "비밀번호가 변경되었습니다.")
         );
     }
+
+    // 회원 탈퇴
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> withdraw(
+            Authentication authentication
+    ) {
+        userService.withdraw(authentication.getName());
+
+        return ResponseEntity.noContent().build();
+    }
 }

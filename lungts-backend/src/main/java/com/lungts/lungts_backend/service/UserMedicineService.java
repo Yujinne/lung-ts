@@ -59,7 +59,8 @@ public class UserMedicineService {
                 .orElse(null);
 
         if (existing != null) {
-            existing.setActive(true);
+            existing.setDeleted(false); // 삭제했던 약이면 목록에 복구
+            existing.setActive(true);   // 활성화
             return UserMedicineResponse.from(existing);
         }
 
@@ -68,7 +69,6 @@ public class UserMedicineService {
                 .user(user)
                 .medicineCode(medicineInfo.get("itemSeq"))
                 .medicineName(medicineInfo.get("itemName"))
-                .doseUnit(request.getDoseUnit())
                 .active(true)
                 .build();
 
@@ -88,6 +88,7 @@ public class UserMedicineService {
         return userMedicineRepository
                 .findByUserIdOrderByIdDesc(user.getId())
                 .stream()
+                .filter(medicine -> !medicine.isDeleted())
                 .map(UserMedicineResponse::from)
                 .toList();
     }
@@ -108,6 +109,57 @@ public class UserMedicineService {
             throw new IllegalArgumentException("본인의 약만 수정할 수 있습니다.");
         }
 
+        medicine.setActive(false);
+    }
+
+    @Transactional
+    public void activate(String email, Long medicineId) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        UserMedicine medicine = userMedicineRepository.findById(medicineId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("등록된 약을 찾을 수 없습니다."));
+
+        if (!medicine.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("본인의 약만 수정할 수 있습니다.");
+        }
+
+        if (medicine.isDeleted()) {
+            throw new IllegalArgumentException("삭제된 약은 수정할 수 없습니다.");
+        }
+
+        medicine.setActive(true);
+    }
+
+    // 내 약 목록에서 삭제
+    @Transactional
+    public void delete(String email, Long medicineId) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        UserMedicine medicine = userMedicineRepository.findById(medicineId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("등록된 약을 찾을 수 없습니다."));
+
+        // 본인이 등록한 약인지 확인
+        if (!medicine.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("본인의 약만 삭제할 수 있습니다.");
+        }
+
+        if (medicine.isDeleted()) {
+            throw new IllegalArgumentException("삭제된 약은 수정할 수 없습니다.");
+        }
+
+        if (medicine.isDeleted()) {
+            throw new IllegalArgumentException("이미 삭제된 약입니다.");
+        }
+
+        medicine.setDeleted(true);
         medicine.setActive(false);
     }
 
