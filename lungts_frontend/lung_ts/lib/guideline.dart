@@ -1,256 +1,262 @@
+
 import 'package:flutter/material.dart';
-import 'package:lung_ts/timer.dart';
-import 'package:lung_ts/app_colors.dart';
 
 class GuidelineScreen extends StatefulWidget {
   const GuidelineScreen({super.key});
 
   @override
-  _GuidelineScreenState createState() => _GuidelineScreenState();
+  State<GuidelineScreen> createState() => _GuidelineScreenState();
 }
 
-class _GuidelineScreenState extends State<GuidelineScreen> with TickerProviderStateMixin {
-  final PageController _controller = PageController();
+class _GuidelineScreenState extends State<GuidelineScreen>
+    with SingleTickerProviderStateMixin {
+  static const Color backgroundColor = Color(0xFFF9FAFB);
+  static const Color primaryBlue = Color(0xFF397DCB);
+
   int _currentSensorIndex = 0;
-  bool _isDeviceOn = false; // 장치 ON/OFF 상태
-  late AnimationController _animationController; // 애니메이션 컨트롤러
-  late Animation<double> _opacityAnimation; // 애니메이션
+
+  late final AnimationController _animationController;
+
+  // 기존 코드의 패치 위치 비율
+  static const List<Offset> _sensorPositions = [
+    Offset(0.428, 0.31),
+    Offset(0.585, 0.31),
+    Offset(0.418, 0.812),
+    Offset(0.585, 0.812),
+  ];
 
   @override
   void initState() {
     super.initState();
+
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000), // 애니메이션 지속 시간
-    )..repeat(reverse: true); // 애니메이션을 반복하고 반전시킴
-    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_animationController); // opacity 애니메이션
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _animationController.dispose(); // 애니메이션 종료 시 리소스 해제
+    _animationController.dispose();
     super.dispose();
+  }
+
+  void _nextStep() {
+    if (_currentSensorIndex == 3) {
+      Navigator.pop(context);
+    } else {
+      setState(() {
+        _currentSensorIndex++;
+      });
+    }
+  }
+
+  void _previousStep() {
+    if (_currentSensorIndex > 0) {
+      setState(() {
+        _currentSensorIndex--;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('가이드라인')),
-      body: PageView(
-        controller: _controller,
-        onPageChanged: (index) {
-          setState(() {
-            _currentSensorIndex = index;
-          });
-        },
-        children: [
-          _buildStep1(),
-          _buildStepWithSensor(0, "1번"),
-          _buildStepWithSensor(1, "2번"),
-          _buildStepWithSensor(2, "3번"),
-          _buildStepWithSensor(3, "4번"),
-        ],
+    return Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: 24,
       ),
-    );
-  }
-
-  // Step 1: 장치 사진과 ON 표시 확인
-  Widget _buildStep1() {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset('assets/lungsound_device.png', height: 200),
-          const SizedBox(height: 20),
-          const Text('장치를 켠 뒤 ON 표시를 확인하세요!', style: TextStyle(fontSize: 18)),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('장치 상태: '),
-              Switch(
-                value: _isDeviceOn,
-                onChanged: (value) {
-                  setState(() {
-                    _isDeviceOn = value;
-                  });
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              if (_isDeviceOn) {
-                _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('장치를 켜주세요!'), duration: Duration(seconds: 1)),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.lightBlueBg,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              '다음',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
       ),
-    );
-  }
-
-  // Step 2-4: 센서 깜빡임
-  Widget _buildStepWithSensor(int sensorIndex, String stepNumber) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          double width = constraints.maxWidth;
-          double height = constraints.maxHeight;
-
-          // 동그라미 크기 및 위치를 화면 크기에 맞게 비율로 계산
-          double circleSize = width * 0.08;  // 화면 너비의 10% 크기
-
-          // 배경 이미지를 그대로 두고, 동그라미는 위치와 크기만 조정
-          List<Positioned> sensorPositions = [
-            //1번 노드
-            Positioned(
-              top: height * 0.31 - circleSize / 2,  // Y 위치를 비율로 설정
-              left: width * 0.385 - circleSize / 2,  // X 위치를 비율로 설정
-              child: AnimatedBuilder(
-                animation: _opacityAnimation,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _currentSensorIndex == 1 ? _opacityAnimation.value : 0.0,
-                    child: CircleAvatar(
-                      radius: circleSize / 2,
-                      backgroundColor: AppColors.primaryBlue,
-                    ),
-                  );
-                },
-              ),
-            ),
-            //2번 노드
-            Positioned(
-              top: height * 0.31 - circleSize / 2,  // Y 위치를 비율로 설정
-              left: width * 0.64 - circleSize / 2,  // X 위치를 비율로 설정
-              child: AnimatedBuilder(
-                animation: _opacityAnimation,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _currentSensorIndex == 2 ? _opacityAnimation.value : 0.0,
-                    child: CircleAvatar(
-                      radius: circleSize / 2,
-                      backgroundColor: AppColors.primaryBlue,
-                    ),
-                  );
-                },
-              ),
-            ),
-            //3번 노드
-            Positioned(
-              top: height * 0.812 - circleSize / 2,  // Y 위치를 비율로 설정
-              left: width * 0.36 - circleSize / 2,  // X 위치를 비율로 설정
-              child: AnimatedBuilder(
-                animation: _opacityAnimation,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _currentSensorIndex == 3 ? _opacityAnimation.value : 0.0,
-                    child: CircleAvatar(
-                      radius: circleSize / 2,
-                      backgroundColor: AppColors.primaryBlue,
-                    ),
-                  );
-                },
-              ),
-            ),
-            //4번 노드
-            Positioned(
-              top: height * 0.812 - circleSize / 2,  // Y 위치를 비율로 설정
-              left: width * 0.645 - circleSize / 2,  // X 위치를 비율로 설정
-              child: AnimatedBuilder(
-                animation: _opacityAnimation,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _currentSensorIndex == 4 ? _opacityAnimation.value : 0.0,
-                    child: CircleAvatar(
-                      radius: circleSize / 2,
-                      backgroundColor: AppColors.primaryBlue,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ];
-
-          return Stack(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/sensor_background.png', // 배경 이미지
-                  fit: BoxFit.cover, // 이미지 크기 맞추기
+              // 제목 및 닫기 버튼
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '패치 부착 방법',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                    tooltip: '닫기',
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              const Text(
+                '표시된 위치에 패치를 부착해 주세요.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
                 ),
               ),
-              ...sensorPositions, // 동그라미 배치
-              // Step number label
-              Positioned(
-                top: 20.0, // 위치를 화면 상단으로 지정
-                left: width * 0.5 - 30, // 화면 중앙에 배치
+
+              const SizedBox(height: 18),
+
+              // 현재 패치 번호
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Text(
-                  stepNumber,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                  '${_currentSensorIndex + 1}번 패치 위치',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: primaryBlue,
+                  ),
                 ),
               ),
-              Positioned(
-                bottom: 20.0,
-                right: 20,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (_currentSensorIndex == 4) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const TimerWithGaugeScreen()),
-                      );
-                    } else {
-                      _controller.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.ease,
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.lightBlueBg,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    '다음',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
 
+              const SizedBox(height: 16),
+
+              // 패치 위치 이미지
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final imageWidth = constraints.maxWidth;
+                  final imageHeight = imageWidth * 0.9;
+                  final circleSize = imageWidth * 0.05;
+                  final position = _sensorPositions[_currentSensorIndex];
+
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(
+                      width: imageWidth,
+                      height: imageHeight,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: Image.asset(
+                              'assets/sensor_background.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+
+                          Positioned(
+                            left: imageWidth * position.dx -
+                                circleSize / 2,
+                            top: imageHeight * position.dy -
+                                circleSize / 2,
+                            child: AnimatedBuilder(
+                              animation: _animationController,
+                              builder: (context, child) {
+                                return Opacity(
+                                  opacity: 0.25 +
+                                      _animationController.value * 0.75,
+                                  child: Container(
+                                    width: circleSize,
+                                    height: circleSize,
+                                    decoration: const BoxDecoration(
+                                      color: primaryBlue,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // 단계 표시
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(4, (index) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 350),
+                    curve: Curves.easeInOutCubic,
+                    width: index == _currentSensorIndex ? 22 : 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: index == _currentSensorIndex
+                          ? primaryBlue
+                          : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  );
+
+                }),
+              ),
+
+              const SizedBox(height: 20),
+
+              // 이전 / 다음 버튼
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (_currentSensorIndex > 0) ...[
+                    SizedBox(
+                      width: 110,
+                      child: OutlinedButton(
+                        onPressed: _previousStep,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: primaryBlue,
+                          minimumSize: const Size(0, 48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('이전'),
+                      ),
+                    ),
+                    const Spacer(),
+                  ],
+
+                  SizedBox(
+                    width: 110,
+                    child: ElevatedButton(
+                      onPressed: _nextStep,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryBlue,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        minimumSize: const Size(0, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        _currentSensorIndex == 3 ? '완료' : '다음',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
-          );
-        },
+          ),
+        ),
       ),
     );
   }

@@ -379,7 +379,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
         ),
         title: Text(widget.initialData == null ? '일기 작성' : '일기 수정',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF202936))),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: Column(

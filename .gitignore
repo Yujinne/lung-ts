@@ -7,3 +7,6 @@ lungts_frontend/demo/
 # Firebase 설정
 lungts_frontend/lung_ts/android/app/google-services.json
 lungts_frontend/lung_ts/ios/Runner/GoogleService-Info.plist
+
+# Uploaded lung sound files
+/lungts-backend/uploads/

@@ -18,4 +18,7 @@ public class MedicationRecordRequest {
 
     // 실제 복용량
     private BigDecimal dose;
+
+    // 복용 단위
+    private String doseUnit;
 }

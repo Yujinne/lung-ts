@@ -570,7 +570,6 @@ class _ActTestScreenState extends State<ActTestScreen> {
         backgroundColor: _background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
         title: const Text(
           'ACT 검사',
           style: TextStyle(

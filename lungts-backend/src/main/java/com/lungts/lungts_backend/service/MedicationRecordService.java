@@ -12,6 +12,11 @@ import com.lungts.lungts_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.lungts.lungts_backend.entity.LungSoundResult;
+import com.lungts.lungts_backend.repository.LungSoundResultRepository;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,6 +29,7 @@ public class MedicationRecordService {
     private final MedicationRecordRepository medicationRecordRepository;
     private final UserMedicineRepository userMedicineRepository;
     private final UserRepository userRepository;
+    private final LungSoundResultRepository lungSoundResultRepository;
 
     // 로그인한 사용자 조회
     private User getUser(String email) {
@@ -37,7 +43,9 @@ public class MedicationRecordService {
         if (request == null
                 || request.getUserMedicineId() == null
                 || request.getTakenAt() == null
-                || request.getDose() == null) {
+                || request.getDose() == null
+                || request.getDoseUnit() == null
+                || request.getDoseUnit().isBlank()) {
             throw new IllegalArgumentException("필수 입력값이 누락되었습니다.");
         }
 
@@ -83,6 +91,7 @@ public class MedicationRecordService {
                 .userMedicine(medicine)
                 .takenAt(request.getTakenAt())
                 .dose(request.getDose())
+                .doseUnit(request.getDoseUnit().trim())
                 .build();
 
         return MedicationRecordResponse.from(
@@ -133,6 +142,7 @@ public class MedicationRecordService {
         record.setUserMedicine(medicine);
         record.setTakenAt(request.getTakenAt());
         record.setDose(request.getDose());
+        record.setDoseUnit(request.getDoseUnit().trim());
 
         return MedicationRecordResponse.from(record);
     }
@@ -140,13 +150,84 @@ public class MedicationRecordService {
     // 복약 기록 삭제
     @Transactional
     public void delete(String email, Long recordId) {
+        deleteMultiple(email, List.of(recordId));
+    }
+
+    // 약 삭제 전 음성 파일과 연결 여부 조회
+    @Transactional(readOnly = true)
+    public List<Long> getLinkedRecordIds(
+            String email,
+            List<Long> recordIds
+    ) {
         User user = getUser(email);
 
-        MedicationRecord record = medicationRecordRepository
-                .findByIdAndUserId(recordId, user.getId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException("복약 기록을 찾을 수 없습니다."));
+        if (recordIds == null || recordIds.isEmpty()) {
+            return List.of();
+        }
 
-        medicationRecordRepository.delete(record);
+        // 요청한 기록이 모두 로그인한 사용자의 것인지 확인
+        for (Long id : recordIds) {
+            medicationRecordRepository
+                    .findByIdAndUserId(id, user.getId())
+                    .orElseThrow(() ->
+                            new IllegalArgumentException(
+                                    "복약 기록을 찾을 수 없습니다: " + id
+                            ));
+        }
+
+        Set<Long> linkedIds = new HashSet<>();
+
+        List<LungSoundResult> linkedResults =
+                lungSoundResultRepository.findByMedicationRecordIds(recordIds);
+
+        for (LungSoundResult result : linkedResults) {
+            for (MedicationRecord record : result.getMedicationRecords()) {
+                if (recordIds.contains(record.getId())) {
+                    linkedIds.add(record.getId());
+                }
+            }
+        }
+
+        return linkedIds.stream().toList();
+    }
+
+    @Transactional
+    public void deleteMultiple(
+            String email,
+            List<Long> recordIds
+    ) {
+        User user = getUser(email);
+
+        if (recordIds == null || recordIds.isEmpty()) {
+            throw new IllegalArgumentException("삭제할 기록이 없습니다.");
+        }
+
+        // 중복 ID 제거
+        List<Long> ids = recordIds.stream().distinct().toList();
+
+        // 삭제 대상의 소유권을 먼저 모두 검증
+        List<MedicationRecord> targetRecords = ids.stream()
+                .map(id -> medicationRecordRepository
+                        .findByIdAndUserId(id, user.getId())
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "복약 기록을 찾을 수 없습니다: " + id
+                                )))
+                .toList();
+
+        List<LungSoundResult> linkedResults =
+                lungSoundResultRepository.findByMedicationRecordIds(ids);
+
+        // 삭제 대상 복약 기록만 연결 해제
+        for (LungSoundResult result : linkedResults) {
+            result.unlinkMedicationRecords(ids);
+        }
+
+        // 연결 테이블 변경 사항을 DB에 반영
+        lungSoundResultRepository.flush();
+
+        // 복약 기록 삭제
+        medicationRecordRepository.deleteAll(targetRecords);
+        medicationRecordRepository.flush();
     }
 }

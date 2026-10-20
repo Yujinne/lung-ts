@@ -9,6 +9,11 @@ import 'act_screen.dart';
 import 'report_screen.dart';
 import 'mypage.dart';
 import 'transition_helper.dart';
+import 'medication_record_screen.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'medication_record_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,11 +24,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   DateTime selectedDate = DateTime.now();
+  List<Map<String, dynamic>> medicationRecords = [];
+  bool isLoadingRecords = false;
+
+  @override
+  void initState() {
+    super.initState();
+    loadMedicationRecords();
+  }
 
   void changeDate(int days) {
     setState(() {
       selectedDate = selectedDate.add(Duration(days: days));
     });
+
+    loadMedicationRecords();
   }
 
   Future<void> selectDate() async {
@@ -52,6 +67,8 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         selectedDate = picked;
       });
+
+      loadMedicationRecords();
     }
   }
 
@@ -66,6 +83,63 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       slideFromRight(screen),
     );
+  }
+
+  Future<void> loadMedicationRecords() async {
+    setState(() {
+      isLoadingRecords = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+
+      if (token == null || token.isEmpty) {
+        throw Exception('로그인 정보가 없습니다.');
+      }
+
+      final date =
+          '${selectedDate.year.toString().padLeft(4, '0')}-'
+          '${selectedDate.month.toString().padLeft(2, '0')}-'
+          '${selectedDate.day.toString().padLeft(2, '0')}';
+
+      final response = await http.get(
+        // 복약 기록 등록 화면에서 사용한 서버 주소와 동일하게 설정
+        Uri.parse(
+          'http://localhost:8080/api/medication-records?date=$date',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('복약 기록 조회 실패: ${response.statusCode}');
+      }
+
+      final List<dynamic> data =
+      jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (!mounted) return;
+
+      setState(() {
+        medicationRecords = data
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+        isLoadingRecords = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        medicationRecords = [];
+        isLoadingRecords = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('복약 기록을 불러오지 못했습니다: $e')),
+      );
+    }
   }
 
   @override
@@ -208,7 +282,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                     final screen = item['screen'];
 
                                     if (screen is Widget) {
-                                      openScreen(screen);
+                                      Navigator.push(
+                                        context,
+                                        slideFromRight(screen),
+                                      ).then((_) {
+                                        if (mounted) {
+                                          loadMedicationRecords();
+                                        }
+                                      });
                                     } else {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
@@ -322,8 +403,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               TextButton(
-                onPressed: () {
-                  // TODO: 복약 기록 전체 보기 화면 연결
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    slideFromRight(
+                      MedicationRecordListScreen(
+                        selectedDate: selectedDate,
+                      ),
+                    ),
+                  );
+
+                  if (mounted) {
+                    loadMedicationRecords();
+                  }
                 },
                 child: const Text(
                   '전체 보기 >',
@@ -382,32 +474,105 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 12),
 
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              vertical: 50,
-              horizontal: 12,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Column(
-              children: [
-                Icon(
-                  Icons.medication_outlined,
-                  size: 30,
-                  color: Colors.grey,
-                ),
-                SizedBox(height: 8),
-                Text(
-                  '복약 기록이 없습니다.',
-                  style: TextStyle(
-                    color: Colors.black54,
-                    fontSize: 13,
+          SizedBox(
+            height: 170,
+            child: isLoadingRecords
+                ? const Center(
+              child: CircularProgressIndicator(),
+            )
+                : medicationRecords.isEmpty
+                ? const Center(
+              child: Text('복약 기록이 없습니다.'),
+            )
+                : ListView.builder(
+              itemCount: medicationRecords.length,
+              physics: const ClampingScrollPhysics(),
+              itemBuilder: (context, index) {
+                final record = medicationRecords[index];
+
+                final takenAt =
+                DateTime.parse(record['takenAt'] as String);
+
+                final time =
+                    '${takenAt.hour.toString().padLeft(2, '0')}:'
+                    '${takenAt.minute.toString().padLeft(2, '0')}';
+
+                final medicineName =
+                record['medicineName'] as String;
+
+                final dose = record['dose'];
+                final doseUnit = record['doseUnit'] as String? ?? '';
+
+                return InkWell(
+                    onTap: () async {
+                  await Navigator.push(
+                    context,
+                    slideFromRight(
+                      MedicationRecordListScreen(
+                        selectedDate: selectedDate,
+                      ),
+                    ),
+                  );
+
+                  if (mounted) {
+                    loadMedicationRecords();
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 13,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F8FA),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      // 왼쪽: 복용 시간
+                      Text(
+                        time,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+
+                      const SizedBox(width: 14),
+
+                      // 가운데: 약 이름
+                      Expanded(
+                        child: Text(
+                          medicineName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      // 오른쪽: 복용량
+                      Text(
+                        '$dose $doseUnit',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+                );
+              },
             ),
           ),
 
@@ -416,8 +581,19 @@ class _HomeScreenState extends State<HomeScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () {
-                // TODO: 복약 기록 등록 화면 연결
+              onPressed: () async {
+                final saved = await Navigator.push<bool>(
+                  context,
+                  slideFromRight(
+                    MedicationRecordScreen(
+                      selectedDate: selectedDate,
+                    ),
+                  ),
+                );
+
+                if (saved == true && mounted) {
+                  loadMedicationRecords();
+                }
               },
               icon: const Icon(Icons.add),
               label: const Text('복약 기록하기'),

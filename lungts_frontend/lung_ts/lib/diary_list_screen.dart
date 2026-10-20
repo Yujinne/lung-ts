@@ -28,6 +28,7 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
   static const Color pageBackground = Color(0xFFF7F8FA);
   static const Color textDark = Color(0xFF202936);
   static const Color textGray = Color(0xFF8B929D);
+  static const Color _dark = Color(0xFF202936);
 
   @override
   void initState() {
@@ -434,17 +435,26 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: pageBackground,
-      appBar: AppBar(
+    return GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+      if (isMenuOpen) {
+        setState(() {
+          isMenuOpen = false;
+        });
+      }
+    },
+    child: Scaffold(
+    backgroundColor: pageBackground,
+    appBar: AppBar(
         backgroundColor: pageBackground,
         elevation: 0,
         title: const Text(
           '일기장',
           style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: textDark,
+            color: _dark,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -513,9 +523,11 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
             backgroundColor: primaryBlue,
             foregroundColor: Colors.white,
             elevation: 4,
+            shape: const CircleBorder(),
             onPressed: _toggleMenu,
             child: Icon(
               isMenuOpen ? Icons.close : Icons.edit_outlined,
+              size: 24,
             ),
           ),
         ],
@@ -575,6 +587,7 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
         ),
       )
           : null,
+    ),
     );
   }
 }

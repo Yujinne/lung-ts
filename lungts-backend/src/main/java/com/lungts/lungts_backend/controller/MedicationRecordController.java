@@ -83,4 +83,32 @@ public class MedicationRecordController {
 
         return ResponseEntity.noContent().build();
     }
+
+    // 삭제 전 폐소리와 연결된 복약 기록 ID 조회
+    @PostMapping("/linked-check")
+    public ResponseEntity<List<Long>> checkLinkedRecords(
+            Authentication authentication,
+            @RequestBody List<Long> recordIds
+    ) {
+        return ResponseEntity.ok(
+                medicationRecordService.getLinkedRecordIds(
+                        authentication.getName(),
+                        recordIds
+                )
+        );
+    }
+
+    // 여러 개 복약 기록 일괄 삭제
+    @PostMapping("/batch-delete")
+    public ResponseEntity<Void> deleteMultiple(
+            Authentication authentication,
+            @RequestBody List<Long> recordIds
+    ) {
+        medicationRecordService.deleteMultiple(
+                authentication.getName(),
+                recordIds
+        );
+
+        return ResponseEntity.noContent().build();
+    }
 }

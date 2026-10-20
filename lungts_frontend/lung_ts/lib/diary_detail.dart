@@ -102,8 +102,12 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
         backgroundColor: const Color(0xFFF7F8FA),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
-        title: const Text('일기 상세', style: TextStyle(color: _dark, fontSize: 18, fontWeight: FontWeight.w700)),
+        title: const Text('일기 상세', style: TextStyle(
+          color: _dark,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: _dark),
           onPressed: () => Navigator.pop(context, _changed),

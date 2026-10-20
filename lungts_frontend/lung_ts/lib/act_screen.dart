@@ -439,7 +439,6 @@ class _ActScreenState extends State<ActScreen> {
         backgroundColor: _background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
         title: const Text(
           'ACT 천식 조절 검사',
           style: TextStyle(
