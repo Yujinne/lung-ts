@@ -165,9 +165,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
   Future<void> _saveDiaryEntry() async {
     if (selectedSymptoms.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('증상을 선택하세요.')),
-      );
       return;
     }
 
@@ -233,20 +230,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('일기가 저장되었습니다.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('저장 실패: $e')),
-      );
     }
   }
 

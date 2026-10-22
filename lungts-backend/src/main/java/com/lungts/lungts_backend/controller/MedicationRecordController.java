@@ -54,6 +54,38 @@ public class MedicationRecordController {
         );
     }
 
+    // 월별 복약 기록 조회
+    @GetMapping("/monthly")
+    public ResponseEntity<List<MedicationRecordResponse>> getByMonth(
+            Authentication authentication,
+            @RequestParam int year,
+            @RequestParam int month
+    ) {
+        return ResponseEntity.ok(
+                medicationRecordService.getByMonth(
+                        authentication.getName(),
+                        year,
+                        month
+                )
+        );
+    }
+
+    // 주별 복약 기록 조회 (월요일 ~ 일요일)
+    @GetMapping("/weekly")
+    public ResponseEntity<List<MedicationRecordResponse>> getByWeek(
+            Authentication authentication,
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate date
+    ) {
+        return ResponseEntity.ok(
+                medicationRecordService.getByWeek(
+                        authentication.getName(),
+                        date
+                )
+        );
+    }
+
     // 3. 복약 기록 수정
     @PutMapping("/{recordId}")
     public ResponseEntity<MedicationRecordResponse> update(

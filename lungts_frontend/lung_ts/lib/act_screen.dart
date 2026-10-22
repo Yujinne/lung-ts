@@ -18,7 +18,7 @@ class ActScreen extends StatefulWidget {
 class _ActScreenState extends State<ActScreen> {
   static const Color _blue = Color(0xFF377DCE);
   static const Color _dark = Color(0xFF202936);
-  static const Color _background = Color(0xFFF7F8FA);
+  static const Color _background = Color(0xFFF9FAFB);
   static const Color _grey = Color(0xFF7A8492);
 
   List<Map<String, dynamic>> previousResults = [];
@@ -83,12 +83,6 @@ class _ActScreenState extends State<ActScreen> {
       setState(() {
         _loading = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('검사 결과를 불러오지 못했습니다.'),
-        ),
-      );
     }
   }
 

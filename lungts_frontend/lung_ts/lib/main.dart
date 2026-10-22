@@ -4,17 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'signin.dart'; // SignIn 화면 import
 import 'home.dart'; // Home 화면 import
 import 'category_screen.dart';
-import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-
+import 'package:flutter/gestures.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
 
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('jwt_token');
@@ -109,6 +104,13 @@ class MyApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
+
+      scrollBehavior: const MaterialScrollBehavior().copyWith(
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.mouse,
+        },
+      ),
     );
   }
 }

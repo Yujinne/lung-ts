@@ -395,63 +395,95 @@ class _SymptomReportScreenState extends State<SymptomReportScreen> {
   }
 
 
+
   @override
   Widget build(BuildContext context) {
-    String formattedMonth = DateFormat('yyyy년 MM월').format(currentMonth);
+    final formattedMonth =
+    DateFormat('yyyy년 MM월').format(currentMonth);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text("증상 보고서")),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 월 변경 위젯
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                    onPressed: _goToPreviousMonth, child: const Text("이전")),
-                GestureDetector(
-                  onTap: _showYearMonthPicker,
-                  child: Text(
-                    formattedMonth,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+    return Container(
+      color: const Color(0xFFF9FAFB),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 월 선택 카드
+            _reportCard(
+              verticalPadding: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: _goToPreviousMonth,
+                    icon: const Icon(Icons.chevron_left),
+                    color: const Color(0xFF3678C8),
                   ),
-                ),
-                TextButton(onPressed: _goToNextMonth, child: const Text("다음")),
-              ],
+                  InkWell(
+                    onTap: _showYearMonthPicker,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            formattedMonth,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.calendar_month_rounded,
+                            size: 19,
+                            color: Color(0xFF3678C8),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _goToNextMonth,
+                    icon: const Icon(Icons.chevron_right),
+                    color: const Color(0xFF3678C8),
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          const Divider(),
+            const SizedBox(height: 12),
 
-          // 증상 빈도 라벨 및 색상표
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "증상 빈도",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-
-                // ✅ 여기에 조건부 UI 표시
-                symptomCounts == null
-                    ? Center(child: CircularProgressIndicator())
-                    : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    buildSymptomBarAnimated(symptomCounts!, symptomColors),
-                    const SizedBox(height: 16),
+            // 증상 빈도 카드
+            _reportCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '증상 빈도',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (symptomCounts == null)
+                    const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  else ...[
+                    buildSymptomBarAnimated(
+                      symptomCounts!,
+                      symptomColors,
+                    ),
+                    const SizedBox(height: 20),
                     Wrap(
                       spacing: 16,
-                      runSpacing: 8,
+                      runSpacing: 12,
                       children: symptomColors.entries.map((entry) {
                         final count = symptomCounts![entry.key] ?? 0;
+
                         return Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -464,40 +496,95 @@ class _SymptomReportScreenState extends State<SymptomReportScreen> {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Text(entry.key),
-                            const SizedBox(width: 6),
-                            Text('${count}회',
-                                style: TextStyle(color: Colors.grey)),
+                            Text(
+                              entry.key,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              '${count}회',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
                           ],
                         );
                       }).toList(),
                     ),
                   ],
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
+            const SizedBox(height: 16),
 
-          const Divider(),
-
-          // 이후 시간대별 증상 추가 예정
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text("시간대별 증상",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 20),
-          symptomTimeData == null || !hasTimeSlotData(symptomTimeData!)
-              ? Center(child: Text("시간대별 증상 데이터가 없습니다."))
-              : Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildSymptomTimeBarChart(symptomTimeData!),
-          ),
-        ],
+            // 시간대별 증상 카드
+            _reportCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '시간대별 증상',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (symptomTimeData == null)
+                    const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  else if (!hasTimeSlotData(symptomTimeData!))
+                    const SizedBox(
+                      height: 140,
+                      child: Center(
+                        child: Text(
+                          '시간대별 증상 데이터가 없습니다.',
+                          style: TextStyle(
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    _buildSymptomTimeBarChart(symptomTimeData!),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+// 하얀 카드 공통 디자인
+  Widget _reportCard({
+    required Widget child,
+    double verticalPadding = 18,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: verticalPadding,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
 
   bool hasTimeSlotData(Map<String, dynamic> data) {
     for (final value in data.values) {

@@ -14,7 +14,7 @@ class ActTestScreen extends StatefulWidget {
 class _ActTestScreenState extends State<ActTestScreen> {
   static const Color _blue = Color(0xFF377DCE);
   static const Color _dark = Color(0xFF202936);
-  static const Color _background = Color(0xFFF7F8FA);
+  static const Color _background = Color(0xFFF9FAFB);
   static const Color _grey = Color(0xFF7A8492);
 
   int currentIndex = 0;
@@ -95,11 +95,6 @@ class _ActTestScreenState extends State<ActTestScreen> {
 
   void _nextQuestion() {
     if (answers[currentIndex] == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('답변을 선택해주세요.'),
-        ),
-      );
       return;
     }
 
@@ -188,12 +183,6 @@ class _ActTestScreenState extends State<ActTestScreen> {
       setState(() {
         _submitting = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('ACT 결과 저장에 실패했습니다.'),
-        ),
-      );
     }
   }
 
@@ -476,7 +465,7 @@ class _ActTestScreenState extends State<ActTestScreen> {
               child: LinearProgressIndicator(
                 value: animatedProgress,
                 minHeight: 8,
-                backgroundColor: const Color(0xFFE4EAF2),
+                backgroundColor: const Color(0xFFF9FAFB),
                 valueColor: const AlwaysStoppedAnimation<Color>(_blue),
               ),
             );

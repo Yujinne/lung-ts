@@ -82,9 +82,6 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
         await _reloadEntry();
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('수정한 일기를 다시 불러오지 못했습니다: $e')),
-        );
       }
     }
   }
@@ -97,9 +94,9 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
     final memo = (entry['memo'] ?? '').toString();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF7F8FA),
+        backgroundColor: const Color(0xFFF9FAFB),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: const Text('일기 상세', style: TextStyle(

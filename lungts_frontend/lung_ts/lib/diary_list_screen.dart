@@ -25,7 +25,7 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
   Set<int> selectedEntries = <int>{};
 
   static const Color primaryBlue = Color(0xFF377DCE);
-  static const Color pageBackground = Color(0xFFF7F8FA);
+  static const Color pageBackground = Color(0xFFF9FAFB);
   static const Color textDark = Color(0xFF202936);
   static const Color textGray = Color(0xFF8B929D);
   static const Color _dark = Color(0xFF202936);
@@ -81,12 +81,6 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('일기를 불러오지 못했습니다: $e'),
-        ),
-      );
     }
   }
 
@@ -250,18 +244,8 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
       await _loadDiaries();
 
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('선택한 일기가 삭제되었습니다.'),
-        ),
-      );
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('삭제 실패: $e')),
-      );
     } finally {
       if (mounted) {
         setState(() {

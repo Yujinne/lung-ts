@@ -1,7 +1,4 @@
-
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
 import 'app_colors.dart';
 import 'diary_list_screen.dart';
 import 'measurement.dart';
@@ -135,17 +132,11 @@ class _HomeScreenState extends State<HomeScreen> {
         medicationRecords = [];
         isLoadingRecords = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('복약 기록을 불러오지 못했습니다: $e')),
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
     final menuItems = [
       {
         'title': '일기장',
@@ -290,15 +281,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           loadMedicationRecords();
                                         }
                                       });
-                                    } else {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            '준비 중인 기능입니다.',
-                                          ),
-                                        ),
-                                      );
                                     }
                                   },
                                   child: LayoutBuilder(

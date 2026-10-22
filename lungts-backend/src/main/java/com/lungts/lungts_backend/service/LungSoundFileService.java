@@ -55,4 +55,31 @@ public class LungSoundFileService {
 
         return "uploads/lung-sounds/" + storedName;
     }
+
+    public Path getWavFile(String audioPath) throws IOException {
+
+        if (audioPath == null || audioPath.isBlank()) {
+            throw new IllegalArgumentException("음성 파일 경로가 없습니다.");
+        }
+
+        Path fileName = Paths.get(audioPath).getFileName();
+
+        if (fileName == null) {
+            throw new IllegalArgumentException("잘못된 파일 경로입니다.");
+        }
+
+        Path filePath = UPLOAD_DIR.resolve(fileName).normalize();
+
+        if (!filePath.startsWith(UPLOAD_DIR)) {
+            throw new IllegalArgumentException("잘못된 파일 경로입니다.");
+        }
+
+        if (!Files.isRegularFile(filePath)) {
+            throw new java.io.FileNotFoundException(
+                    "WAV 파일을 찾을 수 없습니다."
+            );
+        }
+
+        return filePath;
+    }
 }

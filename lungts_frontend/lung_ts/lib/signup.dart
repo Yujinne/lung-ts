@@ -74,7 +74,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(dialogContext),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF377DCE),
+                  backgroundColor: const Color(0xFFF9FAFB),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -226,7 +226,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       Navigator.pop(dialogContext, true);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3678C8),
+                      backgroundColor: const Color(0xFFF9FAFB),
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('네, 약을 등록할게요'),
@@ -461,7 +461,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         backgroundColor: const Color(0xFFF7F8FA),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF202936)),
+          icon: const Icon(Icons.arrow_back, color: Colors.black54),
           onPressed: () => Navigator.pop(context),
         ),
       ),

@@ -23,7 +23,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   String otherDiseaseName = '';
 
   static const Color primaryBlue = Color(0xFF377DCE);
-  static const Color pageBackground = Color(0xFFF7F8FA);
+  static const Color pageBackground = Color(0xFFF9FAFB);
 
   String get diseaseText {
     if (userDiseases.isEmpty) return '미등록';

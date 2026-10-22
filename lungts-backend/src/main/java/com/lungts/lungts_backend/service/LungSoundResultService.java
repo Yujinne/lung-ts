@@ -164,4 +164,36 @@ public class LungSoundResultService {
 
         return create(email, request);
     }
+
+    @Transactional(readOnly = true)
+    public String getAudioPath(String email, Long resultId) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                );
+
+        LungSoundResult result = lungSoundResultRepository.findById(resultId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("측정 기록을 찾을 수 없습니다.")
+                );
+
+        // 본인 기록인지 확인
+        if (!result.getUser().getId().equals(user.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "본인의 측정 기록만 조회할 수 있습니다."
+            );
+        }
+
+        // WAV 파일 경로 확인
+        String audioPath = result.getAudioPath();
+
+        if (audioPath == null || audioPath.isBlank()) {
+            throw new IllegalArgumentException(
+                    "이 측정 기록에는 저장된 음성 파일이 없습니다."
+            );
+        }
+
+        return audioPath;
+    }
 }

@@ -209,7 +209,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
 
   static const Color primaryBlue = Color(0xFF377DCE);
-  static const Color pageBackground = Color(0xFFF7F8FA);
+  static const Color pageBackground = Color(0xFFF9FAFB);
 
 // 공통 카드 디자인
   Widget _buildCard({

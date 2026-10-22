@@ -159,21 +159,9 @@ class _MedicationRecordListScreenState
         isDeleting = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('복약 기록이 삭제되었습니다.'),
-        ),
-      );
-
       await loadRecords();
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('복약 기록 삭제 중 오류가 발생했습니다: $e'),
-        ),
-      );
     }
   }
 
@@ -512,20 +500,8 @@ class _MedicationRecordListScreenState
       await loadRecords();
 
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('선택한 복약 기록이 삭제되었습니다.'),
-        ),
-      );
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('삭제 중 오류가 발생했습니다: $e'),
-        ),
-      );
     } finally {
       if (mounted) {
         setState(() {

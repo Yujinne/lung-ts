@@ -9,13 +9,10 @@ class MedicationRecordScreen extends StatefulWidget {
   final DateTime selectedDate;
   final Map<String, dynamic>? record;
 
-  final DateTime? measurementTime;
-
   const MedicationRecordScreen({
     super.key,
     required this.selectedDate,
     this.record,
-    this.measurementTime,
   });
 
   @override
@@ -130,85 +127,13 @@ class _MedicationRecordScreenState extends State<MedicationRecordScreen> {
   bool isSaving = false;
 
   Future<void> confirmSaveRecord() async {
-    if (isSaving) return;
-
-    // 폐소리 측정에서 진입한 경우에만 시간 검사
-    if (widget.measurementTime != null) {
-      final measurement = widget.measurementTime!;
-
-      final measurementMinute = DateTime(
-        measurement.year,
-        measurement.month,
-        measurement.day,
-        measurement.hour,
-        measurement.minute,
-      );
-
-      final medicationMinute = DateTime(
-        takenAt.year,
-        takenAt.month,
-        takenAt.day,
-        takenAt.hour,
-        takenAt.minute,
-      );
-
-      if (medicationMinute.isAfter(measurementMinute)) {
-        await showDialog<void>(
-          context: context,
-          builder: (dialogContext) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-              title: const Text(
-                '복약 시간을 확인해 주세요',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: Text(
-                '폐소리 측정 시간보다 복약 시간이 늦습니다.\n\n'
-                    '폐소리 측정: '
-                    '${measurement.hour.toString().padLeft(2, '0')}:'
-                    '${measurement.minute.toString().padLeft(2, '0')}\n'
-                    '약 복용 시간: '
-                    '${takenAt.hour.toString().padLeft(2, '0')}:'
-                    '${takenAt.minute.toString().padLeft(2, '0')}\n\n'
-                    '실제 복용 시간을 확인하고 수정해 주세요.',
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.6,
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text(
-                    '확인',
-                    style: TextStyle(
-                      color: Color(0xFF397DCB),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-
-        // 저장하지 않고 현재 화면 유지
-        return;
-      }
-    }
-
-    // 신규 등록은 기존처럼 저장
+    // 신규 등록은 기존처럼 바로 저장
     if (widget.record == null) {
       await saveRecord();
       return;
     }
 
-    // 기존 복약 기록 수정 확인 팝업
+    // 수정일 때만 확인 팝업 표시
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -243,60 +168,10 @@ class _MedicationRecordScreenState extends State<MedicationRecordScreen> {
   Future<void> saveRecord() async {
     final dose = double.tryParse(doseController.text.trim());
 
-    if (selectedMedicineId == null || dose == null || !dose.isFinite || dose <= 0) {
+    if (selectedMedicineId == null || dose == null || dose <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('약과 복용량을 올바르게 입력해 주세요.'),
-        ),
-      );
-      return;
-    }
-
-// DB DECIMAL(10,2)의 저장 가능 범위 검사
-    if (dose > 99999999.99) {
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            title: const Text(
-              '복용량을 확인해 주세요',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: const Text(
-              '입력한 복용량이 너무 큽니다.\n'
-                  '복용량을 확인하고 다시 입력해 주세요.',
-              style: TextStyle(fontSize: 14, height: 1.6),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text(
-                  '확인',
-                  style: TextStyle(
-                    color: Color(0xFF397DCB),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-      return;
-    }
-
-    final input = doseController.text.trim();
-
-    if (input.contains('.') && input.split('.').last.length > 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('복용량은 소수점 둘째 자리까지만 입력할 수 있습니다.'),
         ),
       );
       return;

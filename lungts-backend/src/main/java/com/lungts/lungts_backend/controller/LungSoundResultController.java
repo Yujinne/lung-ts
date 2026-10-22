@@ -104,4 +104,28 @@ public class LungSoundResultController {
                 )
         );
     }
+
+    @GetMapping(value = "/{resultId}/audio", produces = "audio/wav")
+    public ResponseEntity<org.springframework.core.io.Resource> getAudio(
+            Authentication authentication,
+            @PathVariable Long resultId
+    ) throws IOException {
+
+        String email = authentication.getName();
+
+        // 1. 본인 소유 기록인지 확인하고 파일 경로 조회
+        String audioPath = lungSoundResultService.getAudioPath(email, resultId);
+
+        // 2. 서버에 저장된 WAV 파일 조회
+        java.nio.file.Path filePath = lungSoundFileService.getWavFile(audioPath);
+
+        // 3. WAV 파일 반환
+        org.springframework.core.io.Resource resource =
+                new org.springframework.core.io.UrlResource(filePath.toUri());
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("audio/wav"))
+                .contentLength(java.nio.file.Files.size(filePath))
+                .body(resource);
+    }
 }

@@ -120,10 +120,6 @@ class _LungSoundMedicationRecordScreenState
       );
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('저장 실패: $e')),
-      );
     } finally {
       if (mounted) {
         setState(() {
@@ -149,7 +145,6 @@ class _LungSoundMedicationRecordScreenState
       MaterialPageRoute(
         builder: (context) => MedicationRecordScreen(
           selectedDate: widget.recordedAt,
-          measurementTime: widget.recordedAt,
         ),
       ),
     );

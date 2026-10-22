@@ -21,6 +21,8 @@ import java.util.HashSet;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.time.DayOfWeek;
+import java.time.temporal.TemporalAdjusters;
 
 @Service
 @RequiredArgsConstructor
@@ -112,6 +114,59 @@ public class MedicationRecordService {
                         user.getId(),
                         date.atStartOfDay(),
                         date.plusDays(1).atStartOfDay()
+                )
+                .stream()
+                .map(MedicationRecordResponse::from)
+                .toList();
+    }
+
+    // 월별 복약 기록 조회
+    @Transactional(readOnly = true)
+    public List<MedicationRecordResponse> getByMonth(
+            String email,
+            int year,
+            int month
+    ) {
+        User user = getUser(email);
+
+        // 연도와 월 유효성 검사
+        if (year < 2000 || year > 2049 || month < 1 || month > 12) {
+            throw new IllegalArgumentException("올바른 연도와 월을 입력해 주세요.");
+        }
+
+        LocalDate startDate = LocalDate.of(year, month, 1);
+        LocalDate endDate = startDate.plusMonths(1);
+
+        return medicationRecordRepository
+                .findByUserIdAndTakenAtGreaterThanEqualAndTakenAtLessThanOrderByTakenAtAsc(
+                        user.getId(),
+                        startDate.atStartOfDay(),
+                        endDate.atStartOfDay()
+                )
+                .stream()
+                .map(MedicationRecordResponse::from)
+                .toList();
+    }
+
+    // 주별 복약 기록 조회 (월요일 ~ 일요일)
+    @Transactional(readOnly = true)
+    public List<MedicationRecordResponse> getByWeek(
+            String email,
+            LocalDate date
+    ) {
+        User user = getUser(email);
+
+        LocalDate startDate = date.with(
+                TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)
+        );
+
+        LocalDate endDate = startDate.plusDays(7);
+
+        return medicationRecordRepository
+                .findByUserIdAndTakenAtGreaterThanEqualAndTakenAtLessThanOrderByTakenAtAsc(
+                        user.getId(),
+                        startDate.atStartOfDay(),
+                        endDate.atStartOfDay()
                 )
                 .stream()
                 .map(MedicationRecordResponse::from)
