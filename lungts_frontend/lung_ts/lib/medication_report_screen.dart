@@ -704,7 +704,7 @@ class _MedicationReportScreenState extends State<MedicationReportScreen> {
                                     selectedPeriod,
                                     style: const TextStyle(
                                       fontSize: 13,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
@@ -747,7 +747,6 @@ class _MedicationReportScreenState extends State<MedicationReportScreen> {
                               IconButton(
                                 onPressed: () => _changePeriod(-1),
                                 icon: const Icon(Icons.chevron_left),
-                                color: const Color(0xFF3678C8),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(
                                   minWidth: 36,
@@ -770,7 +769,7 @@ class _MedicationReportScreenState extends State<MedicationReportScreen> {
                                         child: Text(
                                           periodDateLabel,
                                           style: const TextStyle(
-                                            fontSize: 13,
+                                            fontSize: 15,
                                             fontWeight: FontWeight.bold,
                                           ),
                                           overflow: TextOverflow.ellipsis,
@@ -789,7 +788,6 @@ class _MedicationReportScreenState extends State<MedicationReportScreen> {
                               IconButton(
                                 onPressed: () => _changePeriod(1),
                                 icon: const Icon(Icons.chevron_right),
-                                color: const Color(0xFF3678C8),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(
                                   minWidth: 36,

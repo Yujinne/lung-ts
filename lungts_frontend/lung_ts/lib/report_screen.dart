@@ -8,6 +8,7 @@ import 'medication_report_screen.dart';
 
 class ReportScreen extends StatelessWidget {
   const ReportScreen({super.key});
+  static const Color _dark = Color(0xFF202936);
 
   @override
   Widget build(BuildContext context) {
@@ -19,9 +20,9 @@ class ReportScreen extends StatelessWidget {
           title: const Text(
             '보고서',
             style: TextStyle(
-              color: Colors.black87,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
+              color: _dark,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
             ),
           ),
           backgroundColor: const Color(0xFFF9FAFB),

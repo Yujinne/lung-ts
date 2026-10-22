@@ -14,6 +14,8 @@ import com.lungts.lungts_backend.entity.MedicationStatus;
 import com.lungts.lungts_backend.repository.MedicationRecordRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.lungts.lungts_backend.dto.LungSoundMemoRequest;
+import org.springframework.security.access.AccessDeniedException;
 
 @Service
 @RequiredArgsConstructor
@@ -120,6 +122,68 @@ public class LungSoundResultService {
                 .stream()
                 .map(LungSoundResultResponse::from)
                 .toList();
+    }
+
+    // 폐소리 측정 기록 단건 조회
+    @Transactional(readOnly = true)
+    public LungSoundResultResponse getOne(String email, Long resultId) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                );
+
+        LungSoundResult result = lungSoundResultRepository.findById(resultId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("측정 기록을 찾을 수 없습니다.")
+                );
+
+        // 본인 측정 기록인지 확인
+        if (!result.getUser().getId().equals(user.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "본인의 측정 기록만 조회할 수 있습니다."
+            );
+        }
+
+        return LungSoundResultResponse.from(result);
+    }
+
+    // 폐소리 측정 기록 메모 저장 및 수정
+    @Transactional
+    public LungSoundResultResponse updateMemo(
+            String email,
+            Long resultId,
+            LungSoundMemoRequest request
+    ) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                );
+
+        LungSoundResult result = lungSoundResultRepository.findById(resultId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("측정 기록을 찾을 수 없습니다.")
+                );
+
+        // 본인 측정 기록인지 확인
+        if (!result.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException(
+                    "본인의 측정 기록만 수정할 수 있습니다."
+            );
+        }
+
+        // 메모 길이 확인
+        if (request == null ||
+                (request.getMemo() != null && request.getMemo().length() > 200)) {
+            throw new IllegalArgumentException(
+                    "메모는 200자 이내로 작성해주세요."
+            );
+        }
+
+        // 메모만 수정
+        result.setMemo(request.getMemo());
+
+        return LungSoundResultResponse.from(result);
     }
 
     @Transactional

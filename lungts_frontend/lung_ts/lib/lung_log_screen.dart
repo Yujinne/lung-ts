@@ -4,9 +4,8 @@ import 'package:table_calendar/table_calendar.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:just_audio/just_audio.dart';
-import 'dart:typed_data';
 import 'package:flutter/cupertino.dart';
+import 'lung_sound_detail_screen.dart';
 
 
 class LungLogScreen extends StatefulWidget {
@@ -22,50 +21,15 @@ class _LungLogScreenState extends State<LungLogScreen> {
   DateTime selectedDay = DateTime.now();
   DateTime focusedDay = DateTime.now();
 
-  //재생 상태 관리 변수
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  String? _playingKey; // 현재 재생 중인 time key
-  Duration _duration = Duration.zero;
-  Duration _position = Duration.zero;
-
-  bool _isPaused = false;
-
-  Map<String, Duration> _pausedPositions = {};
-
-
   @override
   void initState() {
     super.initState();
     _loadVoiceLogs();
-
-    _audioPlayer.positionStream.listen((position) {
-      setState(() {
-        _position = position;
-      });
-    });
-
-    _audioPlayer.durationStream.listen((duration) {
-      if (duration != null) {
-        setState(() {
-          _duration = duration;
-        });
-      }
-    });
-
-    _audioPlayer.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed) {
-        setState(() {
-          _playingKey = null;
-          _position = Duration.zero;
-        });
-      }
-    });
   }
 
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -236,12 +200,6 @@ class _LungLogScreenState extends State<LungLogScreen> {
     }
   }
 
-  String _formatDuration(Duration d) {
-    final minutes = d.inMinutes.toString().padLeft(2, '0');
-    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return "$minutes:$seconds";
-  }
-
 
   @override
   Widget build(BuildContext context) {
@@ -276,7 +234,6 @@ class _LungLogScreenState extends State<LungLogScreen> {
                 IconButton(
                   onPressed: _goToPreviousMonth,
                   icon: const Icon(Icons.chevron_left),
-                  color: const Color(0xFF3678C8),
                 ),
                 InkWell(
                   onTap: _selectYearMonth,
@@ -309,7 +266,6 @@ class _LungLogScreenState extends State<LungLogScreen> {
                 IconButton(
                   onPressed: _goToNextMonth,
                   icon: const Icon(Icons.chevron_right),
-                  color: const Color(0xFF3678C8),
                 ),
               ],
             ),
@@ -356,7 +312,7 @@ class _LungLogScreenState extends State<LungLogScreen> {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: isMeasured
-                              ? Colors.amberAccent.shade100
+                              ? const Color(0xFFEAF3FF)
                               : null,
                           shape: BoxShape.circle,
                         ),
@@ -384,10 +340,6 @@ class _LungLogScreenState extends State<LungLogScreen> {
                         final String time = record['time'] as String;
                         final formatted = "${time.substring(0, 2)}:${time
                             .substring(2)}";
-                        final isPlaying = _playingKey == time;
-                        final isSelected = _playingKey == time;
-                        final isActuallyPlaying = isSelected &&
-                            _audioPlayer.playing;
 
 
                         // 가정: 저장된 경로는 이와 같은 형식임. 필요 시 수정
@@ -399,134 +351,24 @@ class _LungLogScreenState extends State<LungLogScreen> {
                         return Column(
                           children: [
                             ListTile(
-                              title: Text("$formatted 측정 음성"),
-                              trailing: IconButton(
-
-                                  icon: Icon(
-                                      isActuallyPlaying ? Icons.pause : Icons
-                                          .play_arrow),
-                                  onPressed: () async {
-                                    if (isActuallyPlaying) {
-                                      // 재생 중 → 일시정지
-                                      await _audioPlayer.pause();
-                                      // 정확한 위치를 스트림에서 한 번 가져옴
-                                      final currentPos = await _audioPlayer
-                                          .positionStream.first;
-
-                                      setState(() {
-                                        _isPaused = true;
-                                        _pausedPositions[_playingKey!] =
-                                            currentPos;
-                                      });
-                                    } else if (isSelected && _isPaused) {
-                                      final pausedPos = _pausedPositions[_playingKey!];
-                                      if (pausedPos != null) {
-                                        await _audioPlayer.seek(pausedPos);
-                                      }
-                                      await _audioPlayer.play();
-                                      setState(() {
-                                        _isPaused = false;
-                                      });
-                                    } else {
-                                      try {
-                                        // 새로운 항목 재생: 기존 오디오 정지하고 새 URL 설정
-                                        await _audioPlayer.stop();
-
-                                        setState(() {
-                                          _playingKey = time;
-                                          _position = Duration.zero;
-                                          _duration = Duration.zero;
-                                          _isPaused = false;
-                                        });
-                                        _pausedPositions.removeWhere((key,
-                                            _) => key != time);
-
-                                        final prefs = await SharedPreferences.getInstance();
-                                        final token = prefs.getString('jwt_token');
-
-                                        if (token == null) {
-                                          throw Exception('로그인이 필요합니다.');
-                                        }
-
-                                        final response = await http.get(
-                                          Uri.parse(voiceUrl),
-                                          headers: {
-                                            'Authorization': 'Bearer $token',
-                                          },
-                                        );
-
-                                        if (response.statusCode != 200) {
-                                          throw Exception('WAV 파일 조회 실패: ${response.statusCode}');
-                                        }
-
-                                        final audioBytes = Uint8List.fromList(response.bodyBytes);
-
-                                        await _audioPlayer.setAudioSource(
-                                          _WavAudioSource(audioBytes),
-                                        );
-
-                                        final duration = await _audioPlayer
-                                            .durationFuture;
-                                        if (duration != null) {
-                                          setState(() {
-                                            _duration = duration;
-                                          });
-                                        }
-
-                                        await _audioPlayer.play();
-                                      } catch (e) {
-                                        print("오디오 재생 에러: $e");
-                                      }
-                                    }
-                                  }
-
-
-                              ),
-
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => LungSoundDetailScreen(
+                                      resultId: resultId,
+                                      recordedTime: formatted,
+                                      records: times,
+                                    ),
+                                  ),
+                                );
+                              },
+                        title: Text("$formatted 측정 음성"),
+                        trailing: const Icon(
+                        Icons.chevron_right,
+                        color: Colors.black54,
+                        ),
                             ),
-                            if (isPlaying)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0),
-                                child: Column(
-                                  children: [
-                                    Slider(
-                                      min: 0,
-                                      max: _duration.inSeconds.toDouble(),
-                                      value: _position.inSeconds.toDouble().clamp(
-                                          0, _duration.inSeconds.toDouble()),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _position =
-                                              Duration(seconds: value.toInt());
-                                        });
-                                      },
-                                      onChangeEnd: (value) async {
-                                        final newPosition = Duration(
-                                            seconds: value.toInt());
-                                        await _audioPlayer.seek(newPosition);
-
-                                        if (_playingKey != null) {
-                                          _pausedPositions[_playingKey!] =
-                                              newPosition;
-                                        }
-
-                                        if (!_isPaused) {
-                                          await _audioPlayer.play();
-                                        }
-                                      },
-                                    ),
-
-
-                                    Text(
-                                      "${_formatDuration(
-                                          _position)} / ${_formatDuration(
-                                          _duration)}",
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              ),
                           ],
                         );
                       },
@@ -537,26 +379,6 @@ class _LungLogScreenState extends State<LungLogScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _WavAudioSource extends StreamAudioSource {
-  final Uint8List bytes;
-
-  _WavAudioSource(this.bytes);
-
-  @override
-  Future<StreamAudioResponse> request([int? start, int? end]) async {
-    start ??= 0;
-    end ??= bytes.length;
-
-    return StreamAudioResponse(
-      sourceLength: bytes.length,
-      contentLength: end - start,
-      offset: start,
-      stream: Stream.value(bytes.sublist(start, end)),
-      contentType: 'audio/wav',
     );
   }
 }

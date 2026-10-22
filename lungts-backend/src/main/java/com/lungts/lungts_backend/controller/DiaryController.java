@@ -10,6 +10,7 @@ import com.lungts.lungts_backend.dto.DiaryResponse;
 import com.lungts.lungts_backend.dto.SymptomStatisticsResponse;
 import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/diaries")
@@ -82,6 +83,34 @@ public class DiaryController {
 
         SymptomStatisticsResponse statistics =
                 diaryService.getSymptomStatistics(email, year, month);
+
+        return ResponseEntity.ok(statistics);
+    }
+
+    // 일별 증상 통계 조회
+    @GetMapping("/statistics/daily")
+    public ResponseEntity<SymptomStatisticsResponse> getDailySymptomStatistics(
+            Authentication authentication,
+            @RequestParam LocalDate date
+    ) {
+        String email = authentication.getName();
+
+        SymptomStatisticsResponse statistics =
+                diaryService.getDailySymptomStatistics(email, date);
+
+        return ResponseEntity.ok(statistics);
+    }
+
+    // 주별 증상 통계 조회
+    @GetMapping("/statistics/weekly")
+    public ResponseEntity<SymptomStatisticsResponse> getWeeklySymptomStatistics(
+            Authentication authentication,
+            @RequestParam LocalDate date
+    ) {
+        String email = authentication.getName();
+
+        SymptomStatisticsResponse statistics =
+                diaryService.getWeeklySymptomStatistics(email, date);
 
         return ResponseEntity.ok(statistics);
     }

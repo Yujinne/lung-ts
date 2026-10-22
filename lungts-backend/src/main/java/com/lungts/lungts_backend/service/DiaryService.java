@@ -18,6 +18,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.time.LocalDate;
+import java.time.DayOfWeek;
 
 
 @Service
@@ -159,7 +161,6 @@ public class DiaryService {
         diaryRepository.delete(diary);
     }
 
-    //증상 보고서로 넘길 증상 계산
     @Transactional(readOnly = true)
     public SymptomStatisticsResponse getSymptomStatistics(
             String email,
@@ -170,19 +171,51 @@ public class DiaryService {
                 .orElseThrow(() ->
                         new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        // 선택한 달의 시작 ~ 다음 달 시작
-        LocalDateTime start = LocalDateTime.of(
-                year,
-                month,
-                1,
-                0,
-                0
-        );
-
+        LocalDateTime start = LocalDateTime.of(year, month, 1, 0, 0);
         LocalDateTime end = start.plusMonths(1);
 
-        // 일단 사용자의 전체 일기를 가져온 뒤
-        // 선택한 월에 해당하는 일기만 필터링
+        return calculateSymptomStatistics(user, start, end);
+    }
+
+    // 일별 증상 통계
+    @Transactional(readOnly = true)
+    public SymptomStatisticsResponse getDailySymptomStatistics(
+            String email,
+            LocalDate date
+    ) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = start.plusDays(1);
+
+        return calculateSymptomStatistics(user, start, end);
+    }
+
+    // 주별 증상 통계 (월요일 ~ 일요일)
+    @Transactional(readOnly = true)
+    public SymptomStatisticsResponse getWeeklySymptomStatistics(
+            String email,
+            LocalDate date
+    ) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        LocalDate monday = date.with(DayOfWeek.MONDAY);
+
+        LocalDateTime start = monday.atStartOfDay();
+        LocalDateTime end = start.plusDays(7);
+
+        return calculateSymptomStatistics(user, start, end);
+    }
+
+    private SymptomStatisticsResponse calculateSymptomStatistics(
+            User user,
+            LocalDateTime start,
+            LocalDateTime end
+    ) {
         List<Diary> diaries =
                 diaryRepository.findByUserOrderByOccurredAtDesc(user)
                         .stream()
@@ -196,15 +229,27 @@ public class DiaryService {
         Map<String, Map<String, Integer>> symptomTimeData =
                 new LinkedHashMap<>();
 
+        // 날짜별 증상 횟수
+        Map<String, Map<String, Integer>> symptomDateData =
+                new LinkedHashMap<>();
+
         symptomTimeData.put("새벽", new HashMap<>());
         symptomTimeData.put("오전", new HashMap<>());
         symptomTimeData.put("오후", new HashMap<>());
         symptomTimeData.put("저녁", new HashMap<>());
 
         for (Diary diary : diaries) {
-
             List<DiarySymptom> symptoms =
                     diarySymptomRepository.findByDiary(diary);
+
+            // 일기가 작성된 증상 발생 날짜
+            String dateKey = diary.getOccurredAt().toLocalDate().toString();
+
+            Map<String, Integer> dateCounts =
+                    symptomDateData.computeIfAbsent(
+                            dateKey,
+                            key -> new HashMap<>()
+                    );
 
             int hour = diary.getOccurredAt().getHour();
 
@@ -221,16 +266,19 @@ public class DiaryService {
             }
 
             for (DiarySymptom diarySymptom : symptoms) {
-
                 String symptom = diarySymptom.getSymptom();
 
-                // 전체 증상 횟수
+                // 날짜별 증상 발생 횟수
+                dateCounts.put(
+                        symptom,
+                        dateCounts.getOrDefault(symptom, 0) + 1
+                );
+
                 symptomCounts.put(
                         symptom,
                         symptomCounts.getOrDefault(symptom, 0) + 1
                 );
 
-                // 시간대별 증상 횟수
                 Map<String, Integer> timeCounts =
                         symptomTimeData.get(timeSlot);
 
@@ -243,7 +291,8 @@ public class DiaryService {
 
         return new SymptomStatisticsResponse(
                 symptomCounts,
-                symptomTimeData
+                symptomTimeData,
+                symptomDateData
         );
     }
 }

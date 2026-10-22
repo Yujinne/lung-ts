@@ -18,9 +18,9 @@ class MeasurementScreen extends StatelessWidget {
         title: const Text(
           '폐소리 측정',
           style: TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: Color(0xFF202936),
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
           ),
         ),
         backgroundColor: backgroundColor,

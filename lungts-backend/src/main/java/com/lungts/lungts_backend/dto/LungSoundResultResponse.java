@@ -17,6 +17,12 @@ public class LungSoundResultResponse {
     private MedicationStatus medicationStatus;
     private Long medicationRecordId;
     private List<Long> medicationRecordIds;
+
+    private List<LungSoundMedicationResponse> medications;
+
+    // 폐소리 측정 메모
+    private String memo;
+
     private LocalDateTime createdAt;
 
     public static LungSoundResultResponse from(LungSoundResult result) {
@@ -25,6 +31,12 @@ public class LungSoundResultResponse {
                 .stream()
                 .map(record -> record.getId())
                 .toList();
+
+        List<LungSoundMedicationResponse> medications =
+                result.getMedicationRecords()
+                        .stream()
+                        .map(LungSoundMedicationResponse::from)
+                        .toList();
 
         return LungSoundResultResponse.builder()
                 .id(result.getId())
@@ -35,6 +47,8 @@ public class LungSoundResultResponse {
                         recordIds.size() == 1 ? recordIds.get(0) : null
                 )
                 .medicationRecordIds(recordIds)
+                .medications(medications)
+                .memo(result.getMemo())
                 .createdAt(result.getCreatedAt())
                 .build();
     }

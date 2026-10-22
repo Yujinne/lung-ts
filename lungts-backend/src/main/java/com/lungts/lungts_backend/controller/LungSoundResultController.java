@@ -12,6 +12,8 @@ import com.lungts.lungts_backend.service.LungSoundFileService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
+import com.lungts.lungts_backend.dto.LungSoundMemoRequest;
+import jakarta.validation.Valid;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -48,6 +50,33 @@ public class LungSoundResultController {
 
         return ResponseEntity.ok(
                 lungSoundResultService.getAll(email)
+        );
+    }
+
+    // 폐소리 측정 기록 단건 조회
+    @GetMapping("/{resultId}")
+    public ResponseEntity<LungSoundResultResponse> getOne(
+            Authentication authentication,
+            @PathVariable Long resultId
+    ) {
+        String email = authentication.getName();
+
+        return ResponseEntity.ok(
+                lungSoundResultService.getOne(email, resultId)
+        );
+    }
+
+    // 폐소리 측정 기록 메모 저장 및 수정
+    @PatchMapping("/{resultId}/memo")
+    public ResponseEntity<LungSoundResultResponse> updateMemo(
+            Authentication authentication,
+            @PathVariable Long resultId,
+            @Valid @RequestBody LungSoundMemoRequest request
+    ) {
+        String email = authentication.getName();
+
+        return ResponseEntity.ok(
+                lungSoundResultService.updateMemo(email, resultId, request)
         );
     }
 

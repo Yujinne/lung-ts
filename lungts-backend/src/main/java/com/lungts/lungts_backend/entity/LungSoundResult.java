@@ -30,6 +30,11 @@ public class LungSoundResult {
     @Column(length = 500)
     private String audioPath;
 
+    // 폐소리 측정 기록 메모
+    @Setter
+    @Column(name = "memo", length = 200)
+    private String memo;
+
     // 복약 전 / 복약 후 상태
     @Enumerated(EnumType.STRING)
     @Column(name = "medication_status", length = 20)

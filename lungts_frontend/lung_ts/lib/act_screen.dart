@@ -436,7 +436,7 @@ class _ActScreenState extends State<ActScreen> {
         title: const Text(
           'ACT 천식 조절 검사',
           style: TextStyle(
-            color: _dark,
+            color: Color(0xFF202936),
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
