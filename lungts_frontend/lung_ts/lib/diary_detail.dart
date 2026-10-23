@@ -61,8 +61,81 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
     });
   }
 
+
+  Future<void> _showSuccessDialog(String message) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.check_circle_outline_rounded,
+                color: _blue,
+                size: 44,
+              ),
+              SizedBox(height: 12),
+              Text(
+                '수정 완료',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                  color: _dark,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: _dark,
+            ),
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _blue,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  '확인',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
   Future<void> _editDiary() async {
     final entry = _entry;
+
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -75,16 +148,26 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
         ),
       ),
     );
+
     if (!mounted) return;
+
     if (result == true) {
       _changed = true;
+
       try {
         await _reloadEntry();
       } catch (e) {
-        if (!mounted) return;
+        debugPrint('수정된 일기 조회 실패: $e');
       }
+
+      if (!mounted) return;
+
+      await _showSuccessDialog(
+        '일기가 수정되었습니다.',
+      );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -128,10 +211,16 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
                             children: [
                               _heading(Icons.event_note_outlined, '증상 일시'),
                               const SizedBox(height: 16),
-                              Text(DateFormat('yyyy년 M월 d일').format(date),
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: _dark)),
-                              const SizedBox(height: 6),
-                              Text(entry['time'].toString(), style: const TextStyle(fontSize: 14, color: Color(0xFF7A8492))),
+
+                              Text(
+                                '${DateFormat('yyyy년 M월 d일').format(date)}  ${entry['time']}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: _dark,
+                                ),
+                              ),
+
                             ],
                           ),
                         ),

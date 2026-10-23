@@ -14,7 +14,11 @@ class LungLogScreen extends StatefulWidget {
 
 }
 
-class _LungLogScreenState extends State<LungLogScreen> {
+class _LungLogScreenState extends State<LungLogScreen>
+    with AutomaticKeepAliveClientMixin<LungLogScreen> {
+
+  @override
+  bool get wantKeepAlive => true;
   Set<DateTime> measuredDates = {};
   Map<String, List<Map<String, dynamic>>> fileTimes = {};
 
@@ -38,6 +42,78 @@ class _LungLogScreenState extends State<LungLogScreen> {
         "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
 
     return fileTimes[key] ?? [];
+  }
+
+
+
+  Widget _buildRecordingDay(
+      DateTime day, {
+        bool isToday = false,
+        bool isSelected = false,
+        bool isOutside = false,
+      }) {
+    final int count = getTimesForDay(day).length;
+    final bool hasRecordings = count > 0;
+
+    // 실제 오늘 날짜인지 확인
+    final bool today = isSameDay(day, DateTime.now());
+
+    final Color backgroundColor = isSelected
+        ? const Color(0xFF377DCE)
+        : today
+        ? const Color(0xFFDCEBFF)
+        : hasRecordings
+        ? const Color(0xFFEAF3FF)
+        : Colors.transparent;
+
+    final Color textColor = isSelected
+        ? Colors.white
+        : isOutside
+        ? Colors.grey.shade400
+        : today || hasRecordings
+        ? const Color(0xFF3678C8)
+        : const Color(0xFF202936);
+
+    return Container(
+      margin: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${day.day}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: today || isSelected
+                    ? FontWeight.bold
+                    : FontWeight.w500,
+                color: textColor,
+              ),
+            ),
+
+            if (today || hasRecordings) ...[
+              const SizedBox(height: 1),
+              Text(
+                today
+                    ? (hasRecordings ? '오늘·$count개' : '오늘')
+                    : '$count개',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected
+                      ? Colors.white
+                      : const Color(0xFF3678C8),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   void _goToPreviousMonth() {
@@ -203,6 +279,8 @@ class _LungLogScreenState extends State<LungLogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     final times = getTimesForDay(selectedDay);
     final selectedKey = "${selectedDay.year}-${selectedDay.month
         .toString()
@@ -303,23 +381,22 @@ class _LungLogScreenState extends State<LungLogScreen> {
                     });
                   },
                   headerVisible: false,
+
                   calendarBuilders: CalendarBuilders(
-                    defaultBuilder: (context, day, _) {
-                      bool isMeasured = measuredDates.any((d) =>
-                          isSameDay(d, day));
-                      return Container(
-                        margin: const EdgeInsets.all(6.0),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: isMeasured
-                              ? const Color(0xFFEAF3FF)
-                              : null,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text('${day.day}'),
-                      );
+                    defaultBuilder: (context, day, focusedDay) {
+                      return _buildRecordingDay(day);
+                    },
+                    todayBuilder: (context, day, focusedDay) {
+                      return _buildRecordingDay(day, isToday: true);
+                    },
+                    selectedBuilder: (context, day, focusedDay) {
+                      return _buildRecordingDay(day, isSelected: true);
+                    },
+                    outsideBuilder: (context, day, focusedDay) {
+                      return _buildRecordingDay(day, isOutside: true);
                     },
                   ),
+
                 ),
 
                 const Divider(height: 24),

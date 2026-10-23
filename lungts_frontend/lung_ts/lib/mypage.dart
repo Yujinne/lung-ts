@@ -96,12 +96,96 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
   }
 
+
+  Future<void> _showLogoutSuccessDialog() async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: primaryBlue,
+                  size: 44,
+                ),
+                SizedBox(height: 12),
+                Text(
+                  '로그아웃 완료',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF202936),
+                  ),
+                ),
+              ],
+            ),
+            content: const Text(
+              '로그아웃되었습니다.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: Color(0xFF202936),
+              ),
+            ),
+            actions: [
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryBlue,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    '확인',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // 로그인 정보 삭제
     await prefs.remove('jwt_token');
 
     if (!mounted) return;
 
+    // 로그아웃 성공 팝업
+    await _showLogoutSuccessDialog();
+
+    if (!mounted) return;
+
+    // 확인 버튼을 누른 후 로그인 화면으로 이동
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
@@ -112,49 +196,88 @@ class _MyPageScreenState extends State<MyPageScreen> {
   }
 
 
+
+
   Future<void> _confirmLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: const Row(
+          title: const Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.logout,
-                color: Color(0xFF377DCE),
+                Icons.logout_rounded,
+                color: primaryBlue,
+                size: 44,
               ),
-              SizedBox(width: 10),
-              Text('로그아웃'),
+              SizedBox(height: 12),
+              Text(
+                '로그아웃',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF202936),
+                ),
+              ),
             ],
           ),
           content: const Text(
             '로그아웃하시겠습니까?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.5,
+            ),
           ),
           actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, false),
-              child: const Text(
-                '취소',
-                style: TextStyle(
-                  color: Color(0xFF6B7280),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF6B7280),
+                      side: const BorderSide(
+                        color: Color(0xFFE1E5EB),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('취소'),
+                  ),
                 ),
-              ),
-            ),
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, true),
-              child: const Text(
-                '로그아웃',
-                style: TextStyle(
-                  color: Color(0xFF377DCE),
-                  fontWeight: FontWeight.bold,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryBlue,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('로그아웃'),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         );
@@ -166,6 +289,76 @@ class _MyPageScreenState extends State<MyPageScreen> {
     await _logout();
   }
 
+
+
+  Future<void> _showErrorDialog(String message) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                color: primaryBlue,
+                size: 44,
+              ),
+              SizedBox(height: 12),
+              Text(
+                '오류 발생',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF202936),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryBlue,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  '확인',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
 
   Future<void> _withdraw() async {
@@ -204,14 +397,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('회원 탈퇴 중 오류가 발생했습니다: $e'),
-        ),
+      debugPrint('회원 탈퇴 오류: $e');
+
+      await _showErrorDialog(
+        '회원 탈퇴 중 오류가 발생했습니다.\n잠시 후 다시 시도해 주세요.',
       );
     }
   }
-
 
 
   Future<void> _confirmWithdrawal() async {
@@ -220,40 +412,82 @@ class _MyPageScreenState extends State<MyPageScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: const Row(
+          title: const Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.person_remove_outlined,
                 color: Color(0xFFE45252),
+                size: 44,
               ),
-              SizedBox(width: 10),
-              Text('회원 탈퇴'),
+              SizedBox(height: 12),
+              Text(
+                '회원 탈퇴',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF202936),
+                ),
+              ),
             ],
           ),
           content: const Text(
             '정말 탈퇴하시겠습니까?\n\n'
                 '탈퇴하면 계정에 접근할 수 없으며,\n'
                 '관련 정보가 삭제될 수 있습니다.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.6,
+            ),
           ),
           actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, false),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, true),
-              child: const Text(
-                '탈퇴하기',
-                style: TextStyle(
-                  color: Color(0xFFE45252),
-                  fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF6B7280),
+                      side: const BorderSide(
+                        color: Color(0xFFE1E5EB),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('취소'),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE45252),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('탈퇴하기'),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -264,6 +498,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
     await _withdraw();
   }
+
 
 
   // 공통 카드 디자인

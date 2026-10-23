@@ -29,6 +29,71 @@ class _MedicineEditScreenState extends State<MedicineEditScreen> {
     _loadMedicines();
   }
 
+
+  Future<void> _showResultDialog(
+      String title,
+      String message, {
+        bool success = false,
+      }) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Column(
+          children: [
+            Icon(
+              success
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.info_outline_rounded,
+              color: const Color(0xFF377DCE),
+              size: 44,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF377DCE),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('확인'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
   Future<void> _loadMedicines() async {
     setState(() {
       isLoading = true;
@@ -204,10 +269,10 @@ class _MedicineEditScreenState extends State<MedicineEditScreen> {
 
                   if (!mounted) return;
 
-                  ScaffoldMessenger.of(this.context).showSnackBar(
-                    const SnackBar(
-                      content: Text('약이 등록되었습니다.'),
-                    ),
+                  await _showResultDialog(
+                    '등록 완료',
+                    '약이 등록되었습니다.',
+                    success: true,
                   );
                 } catch (e) {
                   if (!dialogContext.mounted) return;
@@ -576,8 +641,11 @@ class _MedicineEditScreenState extends State<MedicineEditScreen> {
         }
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('상태 변경 실패: $e')),
+      debugPrint('약 상태 변경 오류: $e');
+
+      await _showResultDialog(
+        '변경 실패',
+        '약 상태를 변경하지 못했습니다.\n잠시 후 다시 시도해 주세요.',
       );
     } finally {
       if (mounted) {
@@ -617,6 +685,7 @@ class _MedicineEditScreenState extends State<MedicineEditScreen> {
   Future<void> _deleteSelectedMedicines() async {
     if (selectedMedicineIds.isEmpty || isDeletingMedicines) return;
 
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -625,42 +694,77 @@ class _MedicineEditScreenState extends State<MedicineEditScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: const Row(
+          title: const Column(
             children: [
               Icon(
-                Icons.delete_outline,
+                Icons.delete_outline_rounded,
                 color: Color(0xFFE05A5A),
+                size: 44,
               ),
-              SizedBox(width: 10),
-              Text('약 삭제'),
+              SizedBox(height: 12),
+              Text(
+                '약 삭제',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           content: Text(
             '선택한 약 ${selectedMedicineIds.length}개를 삭제하시겠습니까?\n\n'
                 '기존 복약 기록은 유지됩니다.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.5,
+            ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text(
-                '취소',
-                style: TextStyle(color: Color(0xFF6B7280)),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text(
-                '삭제',
-                style: TextStyle(
-                  color: Color(0xFFE05A5A),
-                  fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey,
+                      side: const BorderSide(
+                        color: Color(0xFFE1E5EB),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('취소'),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE05A5A),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('삭제'),
+                  ),
+                ),
+              ],
             ),
           ],
         );
       },
     );
+
 
     if (confirmed != true || !mounted) return;
 
@@ -687,12 +791,12 @@ class _MedicineEditScreenState extends State<MedicineEditScreen> {
         setState(() => isDeleting = false);
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$successCount개의 약이 삭제되었습니다.',
-          ),
-        ),
+      await _showResultDialog(
+        successCount == ids.length ? '삭제 완료' : '삭제 결과',
+        successCount == ids.length
+            ? '$successCount개의 약이 삭제되었습니다.'
+            : '$successCount개 삭제 완료, ${ids.length - successCount}개 삭제 실패했습니다.',
+        success: successCount == ids.length,
       );
     } finally {
       if (mounted) {
@@ -738,12 +842,7 @@ class _MedicineEditScreenState extends State<MedicineEditScreen> {
     } catch (e) {
       if (!mounted) return false;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('약 삭제 중 오류가 발생했습니다: $e'),
-        ),
-      );
-
+      debugPrint('약 삭제 오류: $e');
       return false;
     }
   }
@@ -793,7 +892,16 @@ class _MedicineEditScreenState extends State<MedicineEditScreen> {
 
     if (confirmed != true || !mounted) return false;
 
-    return await _deleteMedicine(medicineId);
+    final deleted = await _deleteMedicine(medicineId);
+
+    if (!deleted && mounted) {
+      await _showResultDialog(
+        '삭제 실패',
+        '약을 삭제하지 못했습니다.\n잠시 후 다시 시도해 주세요.',
+      );
+    }
+
+    return deleted;
   }
 
 

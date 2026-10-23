@@ -45,31 +45,43 @@ class _TimerWithGaugeScreenState extends State<TimerWithGaugeScreen> {
     _startTimer();
   }
 
+
   void _startTimer() {
     _timer?.cancel();
 
     _timer = Timer.periodic(
       const Duration(seconds: 1),
-          (timer) {
+          (timer) async {
         if (!mounted) {
           timer.cancel();
           return;
         }
 
-        setState(() {
-          if (_timeLeft > 0) {
+        if (_timeLeft > 0) {
+          setState(() {
             _timeLeft--;
-          }
+          });
+        }
 
-          if (_timeLeft == 0) {
+        if (_timeLeft == 0) {
+          timer.cancel();
+
+          // 마지막 진행 바 애니메이션이 끝날 때까지 대기
+          await Future.delayed(
+            const Duration(milliseconds: 900),
+          );
+
+          if (!mounted || _isStopped) return;
+
+          setState(() {
             _isMeasuring = false;
             _isCompleted = true;
-            timer.cancel();
-          }
-        });
+          });
+        }
       },
     );
   }
+
 
   void _stopMeasurement() {
     _timer?.cancel();

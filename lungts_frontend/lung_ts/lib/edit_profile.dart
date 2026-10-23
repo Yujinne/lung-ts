@@ -22,6 +22,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String userEmail = '';
   bool isLoading = true;
   String? loadError;
+  String? _nameError;
+  String? _diseaseError;
+  String? _otherDiseaseError;
 
   // 수정사항이 없을 경우 메시지 출력하기 위해 확인해야 할 변수
   String originalName = '';
@@ -98,6 +101,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   void _toggleDisease(String disease, bool? checked) {
     setState(() {
+      _diseaseError = null;
       if (checked == true) {
         if (disease == 'NONE') {
           selectedDiseases.clear();
@@ -118,32 +122,100 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   bool isSaving = false;
 
+
+  Future<void> _showResultDialog(
+      String title,
+      String message, {
+        bool success = false,
+      }) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Column(
+          children: [
+            Icon(
+              success
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.info_outline_rounded,
+              color: primaryBlue,
+              size: 44,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('확인'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
   Future<void> _saveUserInfo() async {
     final name = nameController.text.trim();
     final otherDiseaseName = otherDiseaseController.text.trim();
 
-    // 1. 입력값 검증
+
+    String? nameError;
+    String? diseaseError;
+    String? otherDiseaseError;
+
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이름을 입력해 주세요.')),
-      );
-      return;
+      nameError = '이름을 입력해 주세요.';
     }
 
     if (selectedDiseases.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('질환을 선택해 주세요.')),
-      );
-      return;
+      diseaseError = '질환을 선택해 주세요.';
     }
 
     if (selectedDiseases.contains('OTHER') &&
         otherDiseaseName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('기타 질환명을 입력해 주세요.')),
-      );
+      otherDiseaseError = '기타 질환명을 입력해 주세요.';
+    }
+
+    setState(() {
+      _nameError = nameError;
+      _diseaseError = diseaseError;
+      _otherDiseaseError = otherDiseaseError;
+    });
+
+    if (nameError != null ||
+        diseaseError != null ||
+        otherDiseaseError != null) {
       return;
     }
+
 
     setState(() {
       isSaving = true;
@@ -179,13 +251,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // 4. 저장 성공
       if (response.statusCode == 200) {
+        await _showResultDialog(
+          '저장 완료',
+          '회원 정보가 수정되었습니다.',
+          success: true,
+        );
+
+        if (!mounted) return;
         Navigator.pop(context, true);
       } else {
         debugPrint('회원 정보 수정 실패: ${response.body}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('회원 정보 수정 실패 (${response.statusCode})'),
-          ),
+        await _showResultDialog(
+          '저장 실패',
+          '회원 정보를 수정하지 못했습니다.\n잠시 후 다시 시도해 주세요.',
         );
       }
     } catch (e) {
@@ -193,10 +271,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       debugPrint('회원 정보 수정 오류: $e');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('회원 정보를 저장하지 못했습니다.'),
-        ),
+      await _showResultDialog(
+        '연결 오류',
+        '회원 정보를 저장하지 못했습니다.\n서버 연결 상태를 확인해 주세요.',
       );
     } finally {
       if (mounted) {
@@ -252,6 +329,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
 
+
   Future<void> _confirmSaveUserInfo() async {
     if (isSaving) return;
 
@@ -259,6 +337,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final currentOtherDiseaseName =
     otherDiseaseController.text.trim();
 
+    // 1. 저장 확인 팝업을 띄우기 전에 입력값 검사
+    String? nameError;
+    String? diseaseError;
+    String? otherDiseaseError;
+
+    if (currentName.isEmpty) {
+      nameError = '이름을 입력해 주세요.';
+    }
+
+    if (selectedDiseases.isEmpty) {
+      diseaseError = '질환을 선택해 주세요.';
+    }
+
+    if (selectedDiseases.contains('OTHER') &&
+        currentOtherDiseaseName.isEmpty) {
+      otherDiseaseError = '기타 질환명을 입력해 주세요.';
+    }
+
+    // 2. 입력창에 오류 표시
+    setState(() {
+      _nameError = nameError;
+      _diseaseError = diseaseError;
+      _otherDiseaseError = otherDiseaseError;
+    });
+
+    // 3. 오류가 있으면 팝업 없이 종료
+    if (nameError != null ||
+        diseaseError != null ||
+        otherDiseaseError != null) {
+      return;
+    }
     // 이름 변경 여부
     final nameChanged = currentName != originalName;
 
@@ -274,11 +383,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     // 변경사항이 하나도 없다면
     if (!nameChanged && !diseasesChanged && !otherChanged) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('수정된 사항이 없습니다.'),
-          duration: Duration(seconds: 2),
-        ),
+      await _showResultDialog(
+        '안내',
+        '수정된 사항이 없습니다.',
       );
       return;
     }
@@ -409,6 +516,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   TextField(
                     controller: nameController,
                     decoration: InputDecoration(
+                      errorText: _nameError,
+                      errorStyle: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 12,
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                      ),
                       hintText: '이름을 입력하세요',
                       filled: true,
                       fillColor: Colors.white,
@@ -440,7 +560,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ),
                     ),
+                    onChanged: (_) {
+                      if (_nameError != null) {
+                        setState(() => _nameError = null);
+                      }
+                    },
                   ),
+
 
                   const SizedBox(height: 22),
 
@@ -542,12 +668,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: TextField(
                         controller: otherDiseaseController,
                         decoration: InputDecoration(
+                          errorText: _otherDiseaseError,
+                          errorStyle: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                          ),
                           hintText: '기타 질환명을 입력하세요',
                           border: OutlineInputBorder(
                             borderRadius:
                             BorderRadius.circular(12),
                           ),
                         ),
+                        onChanged: (_) {
+                          if (_otherDiseaseError != null) {
+                            setState(() => _otherDiseaseError = null);
+                          }
+                        },
                       ),
                     ),
 
@@ -562,6 +706,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     onChanged: (value) =>
                         _toggleDisease('NONE', value),
                   ),
+                  if (_diseaseError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        _diseaseError!,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

@@ -14,7 +14,11 @@ class SymptomReportScreen extends StatefulWidget {
   State<SymptomReportScreen> createState() => _SymptomReportScreenState();
 }
 
-class _SymptomReportScreenState extends State<SymptomReportScreen> {
+class _SymptomReportScreenState extends State<SymptomReportScreen>
+    with AutomaticKeepAliveClientMixin<SymptomReportScreen> {
+
+  @override
+  bool get wantKeepAlive => true;
   DateTime currentMonth = DateTime.now();
 
   DateTime selectedDate = DateTime.now();
@@ -485,7 +489,6 @@ class _SymptomReportScreenState extends State<SymptomReportScreen> {
       child: BarChart(
         BarChartData(
           maxY: adjustedMaxY,
-          // ✅ 동적으로 maxY 설정
           barGroups: barGroups,
           barTouchData: BarTouchData( // 툴팁 설정
             enabled: true,
@@ -756,6 +759,8 @@ class _SymptomReportScreenState extends State<SymptomReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     final formattedDate = selectedPeriod == '월별'
         ? DateFormat('yyyy년 MM월').format(currentMonth)
         : selectedPeriod == '일별'

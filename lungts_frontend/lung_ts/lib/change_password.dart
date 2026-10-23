@@ -20,41 +20,198 @@ class _ChangePasswordScreenState
 
   bool isSaving = false;
 
+  String? _currentPasswordError;
+  String? _newPasswordError;
+  String? _confirmPasswordError;
+
+  final confirmPasswordFocusNode = FocusNode();
+
+
+  @override
+  void initState() {
+    super.initState();
+
+    confirmPasswordFocusNode.addListener(() {
+      if (!confirmPasswordFocusNode.hasFocus && mounted) {
+        _validatePasswordMatch();
+      }
+    });
+  }
+
+  void _validatePasswordMatch() {
+    final newPassword = newPasswordController.text;
+    final confirmPassword = confirmPasswordController.text;
+
+    if (confirmPassword.isEmpty) return;
+
+    setState(() {
+      _confirmPasswordError =
+      newPassword != confirmPassword
+          ? '비밀번호가 일치하지 않습니다.'
+          : null;
+    });
+  }
+
+  void _clearError(String field) {
+    setState(() {
+      switch (field) {
+        case 'current':
+          _currentPasswordError = null;
+          break;
+        case 'new':
+          _newPasswordError = null;
+          _confirmPasswordError = null;
+          break;
+        case 'confirm':
+          _confirmPasswordError = null;
+          break;
+      }
+    });
+  }
+
+
+  InputDecoration _passwordDecoration(
+      String hint,
+      String? error,
+      ) {
+    OutlineInputBorder border(Color color, double width) {
+      return OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: color, width: width),
+      );
+    }
+
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(
+        color: Color(0xFF9CA3AF),
+        fontSize: 14,
+      ),
+      filled: true,
+      fillColor: const Color(0xFFF7F8FA),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 16,
+      ),
+      errorText: error,
+      errorStyle: const TextStyle(
+        color: Colors.red,
+        fontSize: 12,
+      ),
+      border: border(Colors.transparent, 0),
+      enabledBorder: border(
+        error == null ? Colors.transparent : Colors.red,
+        error == null ? 0 : 1.5,
+      ),
+      focusedBorder: border(const Color(0xFF377DCE), 1.5),
+      errorBorder: border(Colors.red, 1.5),
+      focusedErrorBorder: border(Colors.red, 1.5),
+    );
+  }
+
+  Future<void> _showResultDialog(
+      String title,
+      String message, {
+        bool success = false,
+      }) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Column(
+          children: [
+            Icon(
+              success
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.error_outline_rounded,
+              color: success
+                  ? const Color(0xFF377DCE)
+                  : Colors.red,
+              size: 44,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF377DCE),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('확인'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
   Future<void> _changePassword() async {
     final currentPassword = currentPasswordController.text;
     final newPassword = newPasswordController.text;
     final confirmPassword = confirmPasswordController.text;
 
-    // 1. 입력값 검증
-    if (currentPassword.isEmpty ||
-        newPassword.isEmpty ||
-        confirmPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('모든 비밀번호를 입력해 주세요.')),
-      );
+
+    String? currentError;
+    String? newError;
+    String? confirmError;
+
+    if (currentPassword.isEmpty) {
+      currentError = '현재 비밀번호를 입력해 주세요.';
+    }
+
+    if (newPassword.isEmpty) {
+      newError = '새 비밀번호를 입력해 주세요.';
+    } else if (newPassword.length < 4) {
+      newError = '새 비밀번호는 4자 이상이어야 합니다.';
+    }
+
+    if (confirmPassword.isEmpty) {
+      confirmError = '새 비밀번호를 다시 입력해 주세요.';
+    } else if (newPassword.isNotEmpty &&
+        newPassword != confirmPassword) {
+      confirmError = '비밀번호가 일치하지 않습니다.';
+    }
+
+    if (currentPassword.isNotEmpty &&
+        newPassword.isNotEmpty &&
+        currentPassword == newPassword) {
+      newError = '기존 비밀번호와 다르게 설정해 주세요.';
+    }
+
+    setState(() {
+      _currentPasswordError = currentError;
+      _newPasswordError = newError;
+      _confirmPasswordError = confirmError;
+    });
+
+    if (currentError != null ||
+        newError != null ||
+        confirmError != null) {
       return;
     }
 
-    if (newPassword.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('새 비밀번호는 8자 이상이어야 합니다.')),
-      );
-      return;
-    }
-
-    if (newPassword != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('새 비밀번호가 일치하지 않습니다.')),
-      );
-      return;
-    }
-
-    if (currentPassword == newPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('기존 비밀번호와 다르게 설정해 주세요.')),
-      );
-      return;
-    }
 
     setState(() {
       isSaving = true;
@@ -85,14 +242,14 @@ class _ChangePasswordScreenState
 
       if (!mounted) return;
 
-      // 4. 성공 처리
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('비밀번호가 변경되었습니다.'),
-          ),
+        await _showResultDialog(
+          '변경 완료',
+          '비밀번호가 변경되었습니다.',
+          success: true,
         );
 
+        if (!mounted) return;
         Navigator.pop(context, true);
       } else {
         String errorMessage = '비밀번호 변경에 실패했습니다.';
@@ -109,22 +266,25 @@ class _ChangePasswordScreenState
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.black,
-          ),
-        );
+        if (errorMessage.contains('현재 비밀번호')) {
+          setState(() {
+            _currentPasswordError = errorMessage;
+          });
+        } else {
+          await _showResultDialog(
+            '변경 실패',
+            errorMessage,
+          );
+        }
       }
     } catch (e) {
       if (!mounted) return;
 
       debugPrint('비밀번호 변경 요청 오류: $e');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('비밀번호 변경 중 오류가 발생했습니다.'),
-        ),
+      await _showResultDialog(
+        '오류 발생',
+        '비밀번호 변경 중 오류가 발생했습니다.\n잠시 후 다시 시도해 주세요.',
       );
     } finally {
       if (mounted) {
@@ -140,6 +300,7 @@ class _ChangePasswordScreenState
     currentPasswordController.dispose();
     newPasswordController.dispose();
     confirmPasswordController.dispose();
+    confirmPasswordFocusNode.dispose();
     super.dispose();
   }
 
@@ -162,9 +323,10 @@ class _ChangePasswordScreenState
             TextField(
               controller: currentPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: '현재 비밀번호를 입력하세요',
+              onChanged: (_) => _clearError('current'),
+              decoration: _passwordDecoration(
+                '현재 비밀번호를 입력하세요',
+                _currentPasswordError,
               ),
             ),
 
@@ -178,25 +340,21 @@ class _ChangePasswordScreenState
             TextField(
               controller: newPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: '8자 이상 입력하세요',
+              onChanged: (_) => _clearError('new'),
+              decoration: _passwordDecoration(
+                '8자 이상 입력하세요',
+                _newPasswordError,
               ),
-            ),
-
-            const SizedBox(height: 24),
-
-            const Text(
-              '새 비밀번호 확인',
-              style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: confirmPasswordController,
+              focusNode: confirmPasswordFocusNode,
               obscureText: true,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: '새 비밀번호를 다시 입력하세요',
+              onChanged: (_) => _clearError('confirm'),
+              decoration: _passwordDecoration(
+                '새 비밀번호를 다시 입력하세요',
+                _confirmPasswordError,
               ),
             ),
 

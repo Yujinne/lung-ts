@@ -16,8 +16,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final userNameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
   final Set<String> selectedDiseases = {};
   final otherDiseaseController = TextEditingController();
+  final confirmPasswordFocusNode = FocusNode();
+
+  String? _nameError;
+  String? _emailError;
+  String? _passwordError;
+  String? _diseaseError;
+  String? _otherDiseaseError;
+  String? _confirmPasswordError;
+
+  @override
+  void initState() {
+    super.initState();
+
+    confirmPasswordFocusNode.addListener(() {
+      if (!confirmPasswordFocusNode.hasFocus) {
+        _validatePasswordMatch();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -25,6 +45,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     emailController.dispose();
     passwordController.dispose();
     otherDiseaseController.dispose();
+    confirmPasswordController.dispose();
+    confirmPasswordFocusNode.dispose();
     super.dispose();
   }
 
@@ -89,43 +111,155 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  void _validatePasswordMatch() {
+    final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text;
+
+    // 비밀번호 확인란이 비어 있으면 불일치 검사하지 않음
+    if (confirmPassword.isEmpty) return;
+
+    final isMismatch = password != confirmPassword;
+
+    setState(() {
+      _passwordError = null;
+      _confirmPasswordError = isMismatch
+          ? '비밀번호가 일치하지 않습니다.'
+          : null;
+    });
+  }
+
+  void _onPasswordChanged(String value) {
+    // 수정 중에는 기존 불일치 오류 제거
+    if (_confirmPasswordError != null ||
+        _passwordError != null) {
+      setState(() {
+        _passwordError = null;
+        _confirmPasswordError = null;
+      });
+    }
+  }
+
+
+  Future<void> _showErrorDialog(String message) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Column(
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              color: Color(0xFFDC2626),
+              size: 44,
+            ),
+            SizedBox(height: 12),
+            Text(
+              '오류 발생',
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF377DCE),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('확인'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Future<void> _signUp() async {
     final name = userNameController.text.trim();
     final email = emailController.text.trim();
     final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text;
 
     final otherDisease = otherDiseaseController.text.trim();
 
-    // 질환을 하나 이상 선택했는지 확인
+
+    // 입력값 오류 초기화 및 검사
+    String? nameError;
+    String? emailError;
+    String? passwordError;
+    String? confirmPasswordError;
+    String? diseaseError;
+    String? otherDiseaseError;
+
+    if (name.isEmpty) {
+      nameError = '이름을 입력해 주세요.';
+    }
+
+    if (email.isEmpty) {
+      emailError = '이메일을 입력해 주세요.';
+    } else if (!RegExp(
+      r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+    ).hasMatch(email)) {
+      emailError = '올바른 이메일 형식을 입력해 주세요.';
+    }
+
+    if (password.isEmpty) {
+      passwordError = '비밀번호를 입력해 주세요.';
+    }
+
+    if (confirmPassword.isEmpty) {
+      confirmPasswordError = '비밀번호를 다시 입력해 주세요.';
+    }
+
+    if (password.isNotEmpty &&
+        confirmPassword.isNotEmpty &&
+        password != confirmPassword) {
+      confirmPasswordError = '비밀번호가 일치하지 않습니다.';
+    }
+
     if (selectedDiseases.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('질환을 선택해 주세요. 해당 사항이 없으면 "없음"을 선택해 주세요.'),
-        ),
-      );
+      diseaseError = '질환을 선택해 주세요. 해당 사항이 없으면 "없음"을 선택해 주세요.';
+    }
+
+    if (selectedDiseases.contains('OTHER') &&
+        otherDisease.isEmpty) {
+      otherDiseaseError = '기타 질환명을 입력해 주세요.';
+    }
+
+    setState(() {
+      _nameError = nameError;
+      _emailError = emailError;
+      _passwordError = passwordError;
+      _confirmPasswordError = confirmPasswordError;
+      _diseaseError = diseaseError;
+      _otherDiseaseError = otherDiseaseError;
+    });
+
+    // 입력 오류가 있으면 회원가입 진행 중단
+    if (nameError != null ||
+        emailError != null ||
+        passwordError != null ||
+        confirmPasswordError != null ||
+        diseaseError != null ||
+        otherDiseaseError != null) {
       return;
     }
 
-    // 기타 선택 시 질환명 필수 입력
-    if (selectedDiseases.contains('OTHER') && otherDisease.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('기타 질환명을 입력해 주세요.'),
-        ),
-      );
-      return;
-    }
-
-    // 1. 입력값 확인
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('이름, 이메일, 비밀번호를 모두 입력해 주세요.'),
-        ),
-      );
-      return;
-    }
 
     // 2. 백엔드 회원가입 조건 사전 검증
     try {
@@ -147,29 +281,46 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       if (!mounted) return;
 
-      // 조건을 통과하지 못하면 오류 표시 후 종료
-      if (validateResponse.statusCode != 200) {
-        final message = utf8.decode(validateResponse.bodyBytes);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message.isNotEmpty
-                ? message
-                : '회원가입 정보를 확인해 주세요.'),
-          ),
-        );
+      if (validateResponse.statusCode != 200) {
+        String message = '회원가입 정보를 확인해 주세요.';
+
+        try {
+          final data = jsonDecode(
+            utf8.decode(validateResponse.bodyBytes),
+          );
+
+          if (data is Map && data['message'] is String) {
+            message = data['message'];
+          }
+        } catch (e) {
+          debugPrint('회원가입 오류 메시지 파싱 실패: $e');
+        }
+
+        setState(() {
+          if (message.contains('이메일')) {
+            _emailError = message;
+          } else if (message.contains('비밀번호')) {
+            _passwordError = message;
+          } else if (message.contains('이름')) {
+            _nameError = message;
+          } else if (message.contains('질환')) {
+            _diseaseError = message;
+          } else {
+            _emailError = message;
+          }
+        });
 
         return;
       }
+
     } catch (e) {
       if (!mounted) return;
 
       debugPrint('회원가입 사전 검증 오류: $e');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.'),
-        ),
+      await _showErrorDialog(
+        '서버에 연결할 수 없습니다.\n잠시 후 다시 시도해 주세요.',
       );
 
       return;
@@ -226,7 +377,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       Navigator.pop(dialogContext, true);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF9FAFB),
+                      backgroundColor: const Color(0xFF3678C8),
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('네, 약을 등록할게요'),
@@ -275,10 +426,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
 
       if (response.statusCode != 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('회원가입 실패 (${response.statusCode})'),
-          ),
+        await _showErrorDialog(
+          '회원가입에 실패했습니다.\n잠시 후 다시 시도해 주세요.',
         );
         return;
       }
@@ -296,10 +445,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
 
       if (loginResponse.statusCode != 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('회원가입은 완료됐지만 자동 로그인에 실패했습니다.'),
-          ),
+        await _showErrorDialog(
+          '회원가입은 완료됐지만 자동 로그인에 실패했습니다.\n로그인 화면에서 다시 로그인해 주세요.',
         );
         return;
       }
@@ -310,8 +457,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       await prefs.setString('jwt_token', token);
 
       if (token.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('로그인 토큰이 없습니다.')),
+        await _showErrorDialog(
+          '로그인 정보를 받지 못했습니다.\n다시 로그인해 주세요.',
         );
         return;
       }
@@ -338,10 +485,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       debugPrint('회원가입 처리 오류: $e');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('회원가입 처리 중 오류가 발생했습니다.'),
-        ),
+      await _showErrorDialog(
+        '회원가입 처리 중 오류가 발생했습니다.\n잠시 후 다시 시도해 주세요.',
       );
     }
 
@@ -408,16 +553,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             child: TextField(
               controller: otherDiseaseController,
-              decoration: const InputDecoration(
-                labelText: '질환명',
-                hintText: '질환명을 입력해 주세요',
-                border: OutlineInputBorder(),
-                isDense: true,
+              decoration: _inputDecoration(
+                '질환명',
+                Icons.medical_information_outlined,
+                errorText: _otherDiseaseError,
               ),
             ),
           ),
 
         diseaseOption('NONE', '없음'),
+
+        if (_diseaseError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Text(
+              _diseaseError!,
+              style: const TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+              ),
+            ),
+          ),
+
         const SizedBox(height: 4),
         const Text(
           '질환 정보는 마이페이지에서도 변경할 수 있습니다.',
@@ -430,28 +587,76 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  InputDecoration _inputDecoration(String hint, IconData icon) {
+
+  InputDecoration _inputDecoration(
+      String hint,
+      IconData icon, {
+        String? errorText,
+      }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-      prefixIcon: Icon(icon, color: const Color(0xFF9CA3AF), size: 22),
+      hintStyle: const TextStyle(
+        color: Color(0xFF9CA3AF),
+        fontSize: 14,
+      ),
+      prefixIcon: Icon(
+        icon,
+        color: errorText != null
+            ? Colors.red
+            : const Color(0xFF9CA3AF),
+        size: 22,
+      ),
       filled: true,
       fillColor: const Color(0xFFF7F8FA),
-      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      contentPadding: const EdgeInsets.symmetric(
+        vertical: 14,
+        horizontal: 12,
+      ),
+
+      // 오류 문구
+      errorText: errorText,
+      errorStyle: const TextStyle(
+        color: Colors.red,
+        fontSize: 12,
+      ),
+
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+        borderSide: errorText != null
+            ? const BorderSide(color: Colors.red, width: 1.5)
+            : BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF377DCE), width: 1.5),
+        borderSide: BorderSide(
+          color: _confirmPasswordError ==
+              '비밀번호가 일치하지 않습니다.'
+              ? Colors.red
+              : const Color(0xFF377DCE),
+          width: 1.5,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: Colors.red,
+          width: 1.5,
+        ),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: Colors.red,
+          width: 1.5,
+        ),
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -511,7 +716,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         controller: userNameController,
                         textInputAction: TextInputAction.next,
                         onSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                        decoration: _inputDecoration('이름', Icons.person_outline),
+                        decoration: _inputDecoration(
+                          '이름',
+                          Icons.person_outline,
+                          errorText: _nameError,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       TextField(
@@ -519,16 +728,47 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         onSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                        decoration: _inputDecoration('이메일', Icons.mail_outline),
+                        decoration: _inputDecoration(
+                          '이메일',
+                          Icons.mail_outline,
+                          errorText: _emailError,
+                        ),
                       ),
                       const SizedBox(height: 16),
+
+
                       TextField(
                         controller: passwordController,
                         obscureText: true,
-                        textInputAction: TextInputAction.done,
-                        onEditingComplete: _signUp,
-                        decoration: _inputDecoration('비밀번호', Icons.lock_outline),
+                        textInputAction: TextInputAction.next,
+                        onChanged: _onPasswordChanged,
+                        onSubmitted: (_) => FocusScope.of(context).nextFocus(),
+                        decoration: _inputDecoration(
+                          '비밀번호',
+                          Icons.lock_outline,
+                          errorText: _passwordError,
+                        ),
                       ),
+
+                      const SizedBox(height: 16),
+
+                      TextField(
+                        controller: confirmPasswordController,
+                        focusNode: confirmPasswordFocusNode,
+                        obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        onChanged: _onPasswordChanged,
+                        onSubmitted: (_) {
+                          confirmPasswordFocusNode.unfocus();
+                        },
+                        decoration: _inputDecoration(
+                          '비밀번호 확인',
+                          Icons.lock_outline,
+                          errorText: _confirmPasswordError,
+                        ),
+                      ),
+
+
                       const SizedBox(height: 26),
                       const Divider(color: Color(0xFFE9EDF2), height: 1),
                       const SizedBox(height: 20),

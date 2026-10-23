@@ -31,6 +31,67 @@ class _MedicineRegistrationScreenState
     super.dispose();
   }
 
+
+  Future<void> _showResultDialog(
+      String title,
+      String message, {
+        bool success = false,
+      }) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Column(
+          children: [
+            Icon(
+              success
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.info_outline_rounded,
+              color: const Color(0xFF3678C8),
+              size: 44,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3678C8),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('확인'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
   Future<void> searchMedicines() async {
     final keyword = medicineSearchController.text.trim();
 
@@ -61,8 +122,9 @@ class _MedicineRegistrationScreenState
             .toList();
 
         if (results.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('검색 결과가 없습니다.')),
+          await _showResultDialog(
+            '검색 결과 없음',
+            '검색한 약을 찾을 수 없습니다.',
           );
           return;
         }
@@ -123,17 +185,19 @@ class _MedicineRegistrationScreenState
           },
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('약 검색 실패 (${response.statusCode})'),
-          ),
+        await _showResultDialog(
+          '검색 실패',
+          '약 검색에 실패했습니다.\n잠시 후 다시 시도해 주세요.',
         );
       }
     } catch (e) {
+      debugPrint('약 검색 오류: $e');
+
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('약 검색 오류: $e')),
+      await _showResultDialog(
+        '연결 오류',
+        '서버에 연결할 수 없습니다.\n잠시 후 다시 시도해 주세요.',
       );
     } finally {
       if (mounted) {
@@ -143,6 +207,7 @@ class _MedicineRegistrationScreenState
       }
     }
   }
+
 
   bool isRegistering = false;
 
@@ -176,7 +241,16 @@ class _MedicineRegistrationScreenState
 
       if (!mounted) return;
 
+
       if (response.statusCode == 201) {
+        await _showResultDialog(
+          '등록 완료',
+          '선택한 약이 모두 등록되었습니다.',
+          success: true,
+        );
+
+        if (!mounted) return;
+
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
@@ -184,28 +258,25 @@ class _MedicineRegistrationScreenState
           ),
               (route) => false,
         );
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('선택한 약이 모두 등록되었습니다.'),
-          ),
-        );
       } else {
-        final message = utf8.decode(response.bodyBytes);
+        debugPrint(
+          '약 등록 실패 (${response.statusCode}): '
+              '${utf8.decode(response.bodyBytes)}',
+        );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('약 등록 실패: $message'),
-          ),
+        await _showResultDialog(
+          '등록 실패',
+          '약 등록에 실패했습니다.\n잠시 후 다시 시도해 주세요.',
         );
       }
     } catch (e) {
+      debugPrint('약 등록 요청 오류: $e');
+
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('서버 연결 오류: $e'),
-        ),
+      await _showResultDialog(
+        '연결 오류',
+        '서버 연결 중 오류가 발생했습니다.\n잠시 후 다시 시도해 주세요.',
       );
     } finally {
       if (mounted) {

@@ -19,44 +19,93 @@ class _SignInScreenState extends State<SignInScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
+  String? _emailError;
+  String? _passwordError;
+
+
+  Future<void> _showErrorDialog(String message) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Row(
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              color: Color(0xFFDC2626),
+            ),
+            SizedBox(width: 10),
+            Text(
+              '로그인 오류',
+              style: TextStyle(fontSize: 18),
+            ),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text(
+              '확인',
+              style: TextStyle(color: Color(0xFF377DCE)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
   Future<void> _signIn() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+
+    setState(() {
+      _emailError = email.isEmpty ? '이메일을 입력해 주세요.' : null;
+      _passwordError = password.isEmpty ? '비밀번호를 입력해 주세요.' : null;
+    });
+
+    if (_emailError != null || _passwordError != null) return;
+
     try {
       final response = await http.post(
         Uri.parse('http://localhost:8080/api/auth/login'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email': emailController.text.trim(),
-          'password': passwordController.text.trim(),
+          'email': email,
+          'password': password,
         }),
       );
 
-      if (response.statusCode == 200) {
-        // Spring에서 받은 JWT
-        final token = response.body;
+      if (!mounted) return;
 
-        // JWT를 Flutter에 저장
+      if (response.statusCode == 200) {
+        final token = response.body.trim();
+
+        if (token.isEmpty) {
+          await _showErrorDialog('로그인 토큰을 받지 못했습니다.');
+          return;
+        }
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', token);
 
-        debugPrint(
-          '로그인 후 JWT 저장 확인: ${prefs.getString('jwt_token') != null}',
-        );
-
         if (!mounted) return;
-
 
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 450),
             reverseTransitionDuration: const Duration(milliseconds: 300),
-
             pageBuilder: (context, animation, secondaryAnimation) {
               return const HomeScreen();
             },
-
             transitionsBuilder: (
                 context,
                 animation,
@@ -83,26 +132,21 @@ class _SignInScreenState extends State<SignInScreen> {
             },
           ),
         );
-
       } else {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('이메일, 비밀번호를 확인해주세요.'),
-          ),
-        );
+        setState(() {
+          _passwordError = '이메일 또는 비밀번호가 올바르지 않습니다.';
+        });
       }
     } catch (e) {
-      if (!mounted) return;
+      debugPrint('로그인 오류: $e');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('서버 연결 실패: $e'),
-        ),
+      if (!mounted) return;
+      await _showErrorDialog(
+        '서버에 연결할 수 없습니다.\n잠시 후 다시 시도해 주세요.',
       );
     }
   }
+
 
   @override
   void dispose() {
@@ -163,6 +207,19 @@ class _SignInScreenState extends State<SignInScreen> {
                         onSubmitted: (_) =>
                             FocusScope.of(context).nextFocus(),
                         decoration: InputDecoration(
+                          errorText: _emailError,
+                          errorStyle: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                          ),
                           hintText: '이메일',
                           hintStyle: const TextStyle(
                             color: Color(0xFF9CA3AF),
@@ -195,6 +252,11 @@ class _SignInScreenState extends State<SignInScreen> {
                             ),
                           ),
                         ),
+                        onChanged: (_) {
+                          if (_emailError != null) {
+                            setState(() => _emailError = null);
+                          }
+                        },
                       ),
 
                       const SizedBox(height: 16),
@@ -206,6 +268,19 @@ class _SignInScreenState extends State<SignInScreen> {
                         textInputAction: TextInputAction.done,
                         onSubmitted: (_) => _signIn(),
                         decoration: InputDecoration(
+                          errorText: _passwordError,
+                          errorStyle: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                          ),
                           hintText: '비밀번호',
                           hintStyle: const TextStyle(
                             color: Color(0xFF9CA3AF),
@@ -238,6 +313,11 @@ class _SignInScreenState extends State<SignInScreen> {
                             ),
                           ),
                         ),
+                        onChanged: (_) {
+                          if (_passwordError != null) {
+                            setState(() => _passwordError = null);
+                          }
+                        },
                       ),
 
                       const SizedBox(height: 28),

@@ -79,28 +79,91 @@ class _MedicineAlarmScreenState extends State<MedicineAlarmScreen> with SingleTi
   }
 
 
+  Future<void> _showResultDialog(
+      String title,
+      String message,
+      ) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Column(
+          children: [
+            const Icon(
+              Icons.info_outline_rounded,
+              color: Color(0xFF377DCE),
+              size: 44,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF377DCE),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('확인'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _searchDrugInfo() async {
     final query = _searchController.text.trim();
 
-    if (query.isEmpty) {
-      return;
-    }
+    if (query.isEmpty || isLoading) return;
+
+    setState(() {
+      isLoading = true;
+    });
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('jwt_token');
 
-      if (token == null) {
-        throw Exception('로그인 정보가 없습니다.');
+      if (token == null || token.isEmpty) {
+        await _showResultDialog(
+          '로그인 필요',
+          '로그인 정보가 없습니다.\n다시 로그인해 주세요.',
+        );
+        return;
       }
 
       final uri = Uri.parse(
         'http://localhost:8080/api/medicines/search',
       ).replace(
-        queryParameters: {
-          'name': query,
-        },
+        queryParameters: {'name': query},
       );
 
       final response = await http.get(
@@ -110,37 +173,57 @@ class _MedicineAlarmScreenState extends State<MedicineAlarmScreen> with SingleTi
         },
       );
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final data = jsonDecode(
           utf8.decode(response.bodyBytes),
         );
 
-        _showDrugBottomSheet(data);
+        if (data is Map<String, dynamic>) {
+          _showDrugBottomSheet(data);
+        } else {
+          await _showResultDialog(
+            '조회 실패',
+            '약 정보 형식이 올바르지 않습니다.',
+          );
+        }
       } else if (response.statusCode == 404) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('검색 결과가 없습니다.'),
-          ),
+        await _showResultDialog(
+          '검색 결과 없음',
+          '검색한 약을 찾을 수 없습니다.',
         );
       } else {
-        throw Exception(
+        debugPrint(
           '약 정보 조회 실패: ${response.statusCode}',
+        );
+
+        await _showResultDialog(
+          '조회 실패',
+          '약 정보를 불러오지 못했습니다.\n잠시 후 다시 시도해 주세요.',
         );
       }
     } catch (e) {
-      print('약 검색 오류: $e');
+      debugPrint('약 검색 오류: $e');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('약 정보를 불러오지 못했습니다.'),
-        ),
+      if (!mounted) return;
+
+      await _showResultDialog(
+        '연결 오류',
+        '서버에 연결할 수 없습니다.\n잠시 후 다시 시도해 주세요.',
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
   void _showDrugBottomSheet(Map<String, dynamic> drug) {
     final itemName = drug['itemName'] ?? '';
-    final scrollController = ScrollController(); // ✅ 추가
+    final scrollController = ScrollController();
 
     showModalBottomSheet(
       context: context,
@@ -150,7 +233,7 @@ class _MedicineAlarmScreenState extends State<MedicineAlarmScreen> with SingleTi
           bool isFavorited = favoriteDrugNames.contains(itemName);
 
           return SingleChildScrollView(
-            controller: scrollController, // ✅ 연결
+            controller: scrollController,
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
             ),
@@ -174,7 +257,6 @@ class _MedicineAlarmScreenState extends State<MedicineAlarmScreen> with SingleTi
 
                       setStateBottomSheet(() {}); // rebuild
 
-                      // ✅ 별 누르면 자동 스크롤
                       await Future.delayed(Duration(milliseconds: 150));
                       if (scrollController.hasClients) {
                         scrollController.animateTo(

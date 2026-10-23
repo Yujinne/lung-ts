@@ -14,7 +14,11 @@ class MedicationReportScreen extends StatefulWidget {
       _MedicationReportScreenState();
 }
 
-class _MedicationReportScreenState extends State<MedicationReportScreen> {
+class _MedicationReportScreenState extends State<MedicationReportScreen>
+    with AutomaticKeepAliveClientMixin<MedicationReportScreen> {
+
+  @override
+  bool get wantKeepAlive => true;
   DateTime selectedDate = DateTime.now();
   DateTime focusedDay = DateTime.now();
   String selectedPeriod = '월별';
@@ -600,6 +604,8 @@ class _MedicationReportScreenState extends State<MedicationReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     final cardDecoration = BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(20),
