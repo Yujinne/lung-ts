@@ -37,6 +37,7 @@ public class LungSoundResult {
 
     // 복약 전 / 복약 후 상태
     @Enumerated(EnumType.STRING)
+    @Setter
     @Column(name = "medication_status", length = 20)
     private MedicationStatus medicationStatus;
 
@@ -48,6 +49,7 @@ public class LungSoundResult {
             inverseJoinColumns = @JoinColumn(name = "medication_record_id")
     )
     @Builder.Default
+    @Setter
     private List<MedicationRecord> medicationRecords = new ArrayList<>();
 
     @CreationTimestamp

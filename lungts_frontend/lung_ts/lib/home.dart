@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'medication_record_list_screen.dart';
+import 'widgets/app_calendar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,34 +40,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> selectDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
+    final picked = await AppCalendar.show(
+      context,
       initialDate: selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      locale: const Locale('ko', 'KR'),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF3678C8),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black87,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
 
-    if (picked != null && mounted) {
-      setState(() {
-        selectedDate = picked;
-      });
+    if (picked == null || !mounted) return;
 
-      loadMedicationRecords();
-    }
+    setState(() {
+      selectedDate = picked;
+    });
+
+    await loadMedicationRecords();
   }
 
   String get formattedDate {

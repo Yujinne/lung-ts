@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'widgets/app_calendar.dart';
 
 import 'diary_screen.dart';
 import 'diary_detail.dart';
@@ -17,6 +18,82 @@ class DiaryListScreen extends StatefulWidget {
 
 class _DiaryListScreenState extends State<DiaryListScreen> {
   List<Map<String, dynamic>> diaryEntries = [];
+  DateTime _selectedDate = DateTime.now();
+
+  late final PageController _weekPageController;
+
+  static const int _initialWeekPage = 10000;
+  late final DateTime _baseWeekStart;
+
+  DateTime get _weekStart {
+    final date = _selectedDate;
+    return DateTime(
+      date.year,
+      date.month,
+      date.day - (date.weekday - 1),
+    );
+  }
+
+  bool _isSameDate(DateTime a, DateTime b) {
+    return a.year == b.year &&
+        a.month == b.month &&
+        a.day == b.day;
+  }
+
+  bool _hasDiaryOnDate(DateTime date) {
+    return diaryEntries.any((entry) {
+      final diaryDate = DateFormat('yy/MM/dd').parse(entry['date'] as String);
+      return _isSameDate(diaryDate, date);
+    });
+  }
+
+  List<Map<String, dynamic>> get _filteredDiaries {
+    return diaryEntries.where((entry) {
+      final date = DateFormat('yy/MM/dd').parse(entry['date'] as String);
+      return _isSameDate(date, _selectedDate);
+    }).toList();
+  }
+
+  DateTime _weekStartForPage(int page) {
+    return _baseWeekStart.add(
+      Duration(days: (page - _initialWeekPage) * 7),
+    );
+  }
+
+  int _pageForDate(DateTime date) {
+    final targetMonday = DateTime(
+      date.year,
+      date.month,
+      date.day - (date.weekday - 1),
+    );
+
+    return _initialWeekPage +
+        targetMonday.difference(_baseWeekStart).inDays ~/ 7;
+  }
+
+  Future<void> _openCalendar() async {
+    final markedDates = diaryEntries.map((entry) {
+      return DateFormat('yy/MM/dd').parse(entry['date'] as String);
+    }).toSet();
+
+    final date = await AppCalendar.show(
+      context,
+      initialDate: _selectedDate,
+      markedDates: markedDates,
+    );
+
+    if (date == null || !mounted) return;
+
+    setState(() {
+      _selectedDate = date;
+    });
+
+    await _weekPageController.animateToPage(
+      _pageForDate(date),
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOutCubic,
+    );
+  }
 
   bool isDeleting = false;
   bool isMenuOpen = false;
@@ -33,7 +110,26 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
   @override
   void initState() {
     super.initState();
+
+    final now = DateTime.now();
+
+    _baseWeekStart = DateTime(
+      now.year,
+      now.month,
+      now.day - (now.weekday - 1),
+    );
+
+    _weekPageController = PageController(
+      initialPage: _initialWeekPage,
+    );
+
     _loadDiaries();
+  }
+
+  @override
+  void dispose() {
+    _weekPageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadDiaries() async {
@@ -255,6 +351,169 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
     }
   }
 
+  Widget _buildWeekCalendar() {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final today = DateTime.now();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: _openCalendar,
+            borderRadius: BorderRadius.circular(10),
+            child: Row(
+              children: [
+                Text(
+                  DateFormat('MMMM d, yyyy', 'en_US')
+                      .format(_selectedDate),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: textGray,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.calendar_month_outlined,
+                  size: 17,
+                  color: primaryBlue,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          Text(
+            _isSameDate(_selectedDate, today)
+                ? 'Today'
+                : DateFormat('EEEE', 'en_US').format(_selectedDate),
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: textDark,
+            ),
+          ),
+
+          const SizedBox(height: 22),
+
+          SizedBox(
+            height: 86,
+            child: PageView.builder(
+              controller: _weekPageController,
+              physics: const PageScrollPhysics(),
+              onPageChanged: (page) {
+                final weekStart = _weekStartForPage(page);
+                final weekdayIndex = _selectedDate.weekday - 1;
+
+                setState(() {
+                  _selectedDate = weekStart.add(
+                    Duration(days: weekdayIndex),
+                  );
+                });
+              },
+              itemBuilder: (context, page) {
+                final weekStart = _weekStartForPage(page);
+
+                return Row(
+                  children: List.generate(7, (index) {
+                    final date = weekStart.add(
+                      Duration(days: index),
+                    );
+
+                    final selected = _isSameDate(
+                      date,
+                      _selectedDate,
+                    );
+
+                    final isToday = _isSameDate(date, today);
+
+                    final hasDiary = _hasDiaryOnDate(date);
+
+                    return Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          setState(() {
+                            _selectedDate = date;
+                          });
+                        },
+                        child: Column(
+                          children: [
+                            Text(
+                              weekdays[index],
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: selected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: selected
+                                    ? primaryBlue
+                                    : textGray,
+                              ),
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            Container(
+                              width: 36,
+                              height: 36,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? primaryBlue
+                                    : Colors.transparent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '${date.day}',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: selected
+                                      ? Colors.white
+                                      : textDark,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 6),
+
+                            SizedBox(
+                              height: 8,
+                              child: hasDiary
+                                  ? Center(
+                                child: Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF76C5F5),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              )
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDiaryCard(
       Map<String, dynamic> entry,
       int index,
@@ -443,27 +702,38 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
         ),
       ),
 
-      body: diaryEntries.isEmpty
-          ? const Center(
-        child: Text(
-          '작성된 일기가 없습니다.',
-          style: TextStyle(
-            color: textGray,
-            fontSize: 14,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: _buildWeekCalendar(),
           ),
-        ),
-      )
-          : ListView.builder(
-        padding: const EdgeInsets.fromLTRB(
-          20, 20, 20, 100,
-        ),
-        itemCount: diaryEntries.length,
-        itemBuilder: (context, index) {
-          return _buildDiaryCard(
-            diaryEntries[index],
-            index,
-          );
-        },
+
+          const SizedBox(height: 16),
+
+          Expanded(
+            child: _filteredDiaries.isEmpty
+                ? const Center(
+              child: Text(
+                '선택한 날짜에 작성된 일기가 없습니다.',
+                style: TextStyle(
+                  color: textGray,
+                  fontSize: 14,
+                ),
+              ),
+            )
+                : ListView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
+              itemCount: _filteredDiaries.length,
+              itemBuilder: (context, index) {
+                return _buildDiaryCard(
+                  _filteredDiaries[index],
+                  index,
+                );
+              },
+            ),
+          ),
+        ],
       ),
 
       floatingActionButton: isDeleting

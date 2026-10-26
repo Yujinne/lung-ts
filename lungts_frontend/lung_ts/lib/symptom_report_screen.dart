@@ -1,11 +1,13 @@
 //증상 보고서
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/cupertino.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'widgets/app_calendar.dart';
+import 'package:flutter/cupertino.dart';
+import 'widgets/app_calendar.dart';
 
 class SymptomReportScreen extends StatefulWidget {
   const SymptomReportScreen({super.key});
@@ -78,120 +80,39 @@ class _SymptomReportScreenState extends State<SymptomReportScreen>
     }
   }
 
-  void _showYearMonthPicker() {
-    final int currentYear = currentMonth.year;
-    final int currentMonthValue = currentMonth.month;
 
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        int selectedYear = currentYear;
-        int selectedMonth = currentMonthValue;
-
-        return Container(
-          height: 250,
-          child: Column(
-            children: [
-              SizedBox(
-                height: 200,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: CupertinoPicker(
-                        itemExtent: 40,
-                        scrollController: FixedExtentScrollController(
-                            initialItem: currentYear - 2000),
-                        onSelectedItemChanged: (index) {
-                          selectedYear = 2000 + index;
-                        },
-                        children: List.generate(50, (index) {
-                          return Center(child: Text('${2000 + index}년'));
-                        }),
-                      ),
-                    ),
-                    Expanded(
-                      child: CupertinoPicker(
-                        itemExtent: 40,
-                        scrollController: FixedExtentScrollController(
-                            initialItem: currentMonthValue - 1),
-                        onSelectedItemChanged: (index) {
-                          selectedMonth = index + 1;
-                        },
-                        children: List.generate(12, (index) {
-                          return Center(child: Text('${index + 1}월'));
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    currentMonth = DateTime(selectedYear, selectedMonth);
-                    animateChart = false;
-                  });
-                  _loadSymptomCounts();
-                },
-                child: Text("확인"),
-              )
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showDatePicker() {
+  Future<void> _showDatePicker() async {
     if (selectedPeriod == '월별') {
       _showYearMonthPicker();
       return;
     }
 
-    DateTime tempDate = selectedDate;
-
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return SizedBox(
-          height: 300,
-          child: Column(
-            children: [
-              Expanded(
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.date,
-                  initialDateTime: selectedDate,
-                  dateOrder: DatePickerDateOrder.ymd,
-                  onDateTimeChanged: (date) {
-                    tempDate = date;
-                  },
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-
-                  setState(() {
-                    selectedDate = tempDate;
-                    symptomCounts = null;
-                    symptomTimeData = null;
-                    animateBars = false;
-                    animateChart = false;
-                  });
-
-                  _loadSymptomCounts();
-                  if (selectedPeriod == '일별') {
-                    _loadDailyDiaries();
-                  }
-                },
-                child: const Text('확인'),
-              ),
-            ],
-          ),
-        );
-      },
+    final picked = await AppCalendar.show(
+      context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
     );
+
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      selectedDate = picked;
+
+      symptomCounts = null;
+      symptomTimeData = null;
+      symptomDateData = null;
+      dailyDiaries = [];
+
+      animateBars = false;
+      animateChart = false;
+    });
+
+    _loadSymptomCounts();
+
+    if (selectedPeriod == '일별') {
+      _loadDailyDiaries();
+    }
   }
 
 
@@ -558,6 +479,91 @@ class _SymptomReportScreenState extends State<SymptomReportScreen>
       ),
     );
   }
+
+
+  void _showYearMonthPicker() {
+    final currentYear = currentMonth.year;
+    final currentMonthValue = currentMonth.month;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) {
+        int selectedYear = currentYear;
+        int selectedMonth = currentMonthValue;
+
+        return SizedBox(
+          height: 250,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 200,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: CupertinoPicker(
+                        itemExtent: 40,
+                        scrollController: FixedExtentScrollController(
+                          initialItem: currentYear - 2000,
+                        ),
+                        onSelectedItemChanged: (index) {
+                          selectedYear = 2000 + index;
+                        },
+                        children: List.generate(50, (index) {
+                          return Center(
+                            child: Text('${2000 + index}년'),
+                          );
+                        }),
+                      ),
+                    ),
+                    Expanded(
+                      child: CupertinoPicker(
+                        itemExtent: 40,
+                        scrollController: FixedExtentScrollController(
+                          initialItem: currentMonthValue - 1,
+                        ),
+                        onSelectedItemChanged: (index) {
+                          selectedMonth = index + 1;
+                        },
+                        children: List.generate(12, (index) {
+                          return Center(
+                            child: Text('${index + 1}월'),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+
+                  setState(() {
+                    currentMonth = DateTime(
+                      selectedYear,
+                      selectedMonth,
+                    );
+
+                    symptomCounts = null;
+                    symptomTimeData = null;
+                    symptomDateData = null;
+                    dailyDiaries = [];
+
+                    animateBars = false;
+                    animateChart = false;
+                  });
+
+                  _loadSymptomCounts();
+                },
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
 
   Widget _buildSymptomDateBarChart(Map<String, dynamic> dateData) {
     final DateTime startDate;

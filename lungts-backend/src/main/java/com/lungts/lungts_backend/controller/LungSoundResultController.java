@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 
 import java.util.List;
+import com.lungts.lungts_backend.dto.LungSoundMedicationUpdateRequest;
 
 @RestController
 @RequestMapping("/api/lung-sounds")
@@ -77,6 +78,24 @@ public class LungSoundResultController {
 
         return ResponseEntity.ok(
                 lungSoundResultService.updateMemo(email, resultId, request)
+        );
+    }
+
+    // 폐소리 측정 기록 복약 정보 수정
+    @PatchMapping("/{resultId}/medication")
+    public ResponseEntity<LungSoundResultResponse> updateMedication(
+            Authentication authentication,
+            @PathVariable Long resultId,
+            @RequestBody LungSoundMedicationUpdateRequest request
+    ) {
+        String email = authentication.getName();
+
+        return ResponseEntity.ok(
+                lungSoundResultService.updateMedication(
+                        email,
+                        resultId,
+                        request
+                )
         );
     }
 

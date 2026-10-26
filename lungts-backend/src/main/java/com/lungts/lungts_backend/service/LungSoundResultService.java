@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import com.lungts.lungts_backend.dto.LungSoundMemoRequest;
 import org.springframework.security.access.AccessDeniedException;
+import com.lungts.lungts_backend.dto.LungSoundMedicationUpdateRequest;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -182,6 +184,93 @@ public class LungSoundResultService {
 
         // 메모만 수정
         result.setMemo(request.getMemo());
+
+        return LungSoundResultResponse.from(result);
+    }
+
+    // 폐소리 측정 기록의 복약 정보 수정
+    @Transactional
+    public LungSoundResultResponse updateMedication(
+            String email,
+            Long resultId,
+            LungSoundMedicationUpdateRequest request
+    ) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("사용자를 찾을 수 없습니다.")
+                );
+
+        LungSoundResult result = lungSoundResultRepository.findById(resultId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("측정 기록을 찾을 수 없습니다.")
+                );
+
+        // 본인 기록인지 확인
+        if (!result.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException(
+                    "본인의 측정 기록만 수정할 수 있습니다."
+            );
+        }
+
+        if (request == null || request.getMedicationStatus() == null) {
+            throw new IllegalArgumentException("복약 전/후를 선택해주세요.");
+        }
+
+        MedicationStatus status = request.getMedicationStatus();
+        List<Long> recordIds = request.getMedicationRecordIds();
+
+        List<MedicationRecord> medicationRecords = new ArrayList<>();
+
+        if (status == MedicationStatus.AFTER) {
+
+            if (recordIds == null || recordIds.isEmpty()) {
+                throw new IllegalArgumentException("복약 기록을 선택해주세요.");
+            }
+
+            // null 및 중복 ID 검사
+            if (recordIds.stream().anyMatch(id -> id == null)
+                    || recordIds.stream().distinct().count() != recordIds.size()) {
+                throw new IllegalArgumentException(
+                        "복약 기록 ID가 올바르지 않습니다."
+                );
+            }
+
+            medicationRecords = medicationRecordRepository.findAllById(recordIds);
+
+            if (medicationRecords.size() != recordIds.size()) {
+                throw new IllegalArgumentException(
+                        "일부 복약 기록을 찾을 수 없습니다."
+                );
+            }
+
+            for (MedicationRecord record : medicationRecords) {
+
+                // 본인 복약 기록인지 확인
+                if (!record.getUser().getId().equals(user.getId())) {
+                    throw new AccessDeniedException(
+                            "본인의 복약 기록만 선택할 수 있습니다."
+                    );
+                }
+
+                // 측정 시간 이후 복용 기록은 연결 불가
+                if (record.getTakenAt().isAfter(result.getRecordedAt())) {
+                    throw new IllegalArgumentException(
+                            "측정 시간보다 나중에 복용한 약은 선택할 수 없습니다."
+                    );
+                }
+            }
+
+        } else {
+            // 복약 전이면 연결된 복약 기록을 모두 해제
+            if (recordIds != null && !recordIds.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "복약 전 측정에는 복약 기록을 연결할 수 없습니다."
+                );
+            }
+        }
+
+        result.setMedicationStatus(status);
+        result.setMedicationRecords(medicationRecords);
 
         return LungSoundResultResponse.from(result);
     }

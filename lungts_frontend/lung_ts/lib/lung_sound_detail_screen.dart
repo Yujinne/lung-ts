@@ -40,6 +40,9 @@ class _LungSoundDetailScreenState
   Duration audioPosition = Duration.zero;
   late final Ticker _waveformTicker;
 
+  // 파형을 직접 조작하고 있는지
+  bool _isWaveformDragging = false;
+
   // WAV 파형 데이터
   List<double> audioSamples = [];
   int audioSampleRate = 44100;
@@ -50,9 +53,22 @@ class _LungSoundDetailScreenState
   // 폐소리 측정 상세 정보
   Map<String, dynamic>? lungSoundDetail;
 
+  // 복약 정보 수정 상태
+  bool _isMedicationEditing = false;
+  String _selectedMedicationStatus = 'BEFORE';
+  List<int> _selectedMedicationRecordIds = [];
+  bool _isMedicationSaving = false;
+
+  List<Map<String, dynamic>> _availableMedicationRecords = [];
+  bool _isMedicationLoading = false;
+  String? _medicationError;
+
   // 폐소리 측정 메모
   final TextEditingController _memoController = TextEditingController();
   bool _isMemoSaving = false;
+
+  bool _isMemoEditing = false;
+  String _originalMemo = '';
 
   @override
   void initState() {
@@ -132,14 +148,108 @@ class _LungSoundDetailScreenState
         setState(() {
           lungSoundDetail = detail;
 
-          // 해당 폐소리 측정 기록에 저장된 메모 불러오기
-          _memoController.text = detail['memo']?.toString() ?? '';
+          // 메모
+          _originalMemo = detail['memo']?.toString() ?? '';
+          _memoController.text = _originalMemo;
+          _isMemoEditing = false;
+
+          // 복약 정보
+          _selectedMedicationStatus =
+              detail['medicationStatus']?.toString() ?? 'BEFORE';
+
+          _selectedMedicationRecordIds =
+              ((detail['medicationRecordIds'] as List?) ?? [])
+                  .map((id) => (id as num).toInt())
+                  .toList();
+
+          _isMedicationEditing = false;
         });
       } else {
         debugPrint('폐소리 상세 조회 실패: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('폐소리 상세 조회 오류: $e');
+    }
+  }
+
+  Future<void> _loadAvailableMedicationRecords() async {
+    final resultId = selectedResultId;
+    final detail = lungSoundDetail;
+    if (detail == null) return;
+
+    final recordedAtText = detail['recordedAt']?.toString();
+    final recordedAt = DateTime.tryParse(recordedAtText ?? '');
+
+    if (recordedAt == null) {
+      setState(() {
+        _medicationError = '측정 시간을 확인할 수 없습니다.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isMedicationLoading = true;
+      _medicationError = null;
+      _availableMedicationRecords = [];
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+
+      if (token == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final date =
+          '${recordedAt.year.toString().padLeft(4, '0')}-'
+          '${recordedAt.month.toString().padLeft(2, '0')}-'
+          '${recordedAt.day.toString().padLeft(2, '0')}';
+
+      final response = await http.get(
+        Uri.parse(
+          'http://localhost:8080/api/medication-records?date=$date',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('복약 기록 조회 실패: ${response.statusCode}');
+      }
+
+      final List<dynamic> data =
+      jsonDecode(utf8.decode(response.bodyBytes));
+
+      final records = data
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .where((record) {
+        final takenAt = DateTime.tryParse(
+          record['takenAt']?.toString() ?? '',
+        );
+
+        return takenAt != null && !takenAt.isAfter(recordedAt);
+      })
+          .toList();
+
+      if (!mounted || selectedResultId != resultId) return;
+
+      setState(() {
+        _availableMedicationRecords = records;
+      });
+    } catch (e) {
+      if (!mounted || selectedResultId != resultId) return;
+
+      setState(() {
+        _medicationError = e.toString();
+      });
+    } finally {
+      if (mounted && selectedResultId == resultId) {
+        setState(() {
+          _isMedicationLoading = false;
+        });
+      }
     }
   }
 
@@ -188,6 +298,11 @@ class _LungSoundDetailScreenState
 
         setState(() {
           lungSoundDetail = detail;
+
+          _originalMemo = detail['memo']?.toString() ?? memo;
+          _memoController.text = _originalMemo;
+
+          _isMemoEditing = false;
         });
 
         debugPrint('폐소리 메모 저장 완료');
@@ -205,6 +320,74 @@ class _LungSoundDetailScreenState
     }
   }
 
+  Future<void> _saveMedication() async {
+    if (_isMedicationSaving) return;
+
+    if (_selectedMedicationStatus == 'AFTER' &&
+        _selectedMedicationRecordIds.isEmpty) {
+      setState(() {
+        _medicationError = '복약 기록을 하나 이상 선택해주세요.';
+      });
+      return;
+    }
+
+    final resultId = selectedResultId;
+
+    setState(() {
+      _isMedicationSaving = true;
+      _medicationError = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+
+      if (token == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final response = await http.patch(
+        Uri.parse(
+          'http://localhost:8080/api/lung-sounds/$resultId/medication',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'medicationStatus': _selectedMedicationStatus,
+          'medicationRecordIds':
+          _selectedMedicationStatus == 'AFTER'
+              ? _selectedMedicationRecordIds
+              : <int>[],
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('복약 정보 저장 실패: ${response.statusCode}');
+      }
+
+      if (!mounted || selectedResultId != resultId) return;
+
+      setState(() {
+        _isMedicationEditing = false;
+      });
+
+      await _loadLungSoundDetail();
+    } catch (e) {
+      if (!mounted || selectedResultId != resultId) return;
+
+      setState(() {
+        _medicationError = e.toString();
+      });
+    } finally {
+      if (mounted && selectedResultId == resultId) {
+        setState(() {
+          _isMedicationSaving = false;
+        });
+      }
+    }
+  }
 
   Future<void> _loadAudio() async {
     await _audioPlayer.stop();
@@ -575,14 +758,73 @@ class _LungSoundDetailScreenState
                                 color: const Color(0xFFE5E7EB),
                               ),
                             ),
-                            child: ClipRect(
-                              child: CustomPaint(
-                                painter: LungWaveformPainter(
-                                  rmsValues: waveformRms,
-                                  position: audioPosition,
-                                ),
-                                size: Size.infinite,
-                              ),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                void seekWaveform(double deltaX) {
+                                  if (audioDuration <= Duration.zero) return;
+
+                                  // 파형에 표시되는 전체 구간은 3초
+                                  const windowSeconds = 3.0;
+
+                                  final deltaSeconds =
+                                      deltaX / constraints.maxWidth * windowSeconds;
+
+                                  final newPosition =
+                                      audioPosition.inMicroseconds / 1000000.0 - deltaSeconds;
+
+                                  final clampedSeconds = newPosition.clamp(
+                                    0.0,
+                                    audioDuration.inMicroseconds / 1000000.0,
+                                  );
+
+                                  final target = Duration(
+                                    microseconds: (clampedSeconds * 1000000).round(),
+                                  );
+
+                                  setState(() {
+                                    audioPosition = target;
+                                  });
+
+                                  _audioPlayer.seek(target);
+                                }
+
+                                return GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+
+                                  onHorizontalDragStart: (_) {
+                                    setState(() {
+                                      _isWaveformDragging = true;
+                                    });
+                                  },
+
+                                  onHorizontalDragUpdate: (details) {
+                                    seekWaveform(details.delta.dx);
+                                  },
+
+                                  onHorizontalDragEnd: (_) {
+                                    setState(() {
+                                      _isWaveformDragging = false;
+                                    });
+                                  },
+
+                                  onHorizontalDragCancel: () {
+                                    setState(() {
+                                      _isWaveformDragging = false;
+                                    });
+                                  },
+
+                                  child: ClipRect(
+                                    child: CustomPaint(
+                                      painter: LungWaveformPainter(
+                                        rmsValues: waveformRms,
+                                        position: audioPosition,
+                                        showTime: _isWaveformDragging,
+                                      ),
+                                      size: Size.infinite,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ),
 
@@ -668,89 +910,343 @@ class _LungSoundDetailScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '복약 정보',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            '복약 정보',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+
+                        if (!_isMedicationEditing)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              color: Color(0xFF3678C8),
+                              size: 21,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isMedicationEditing = true;
+                              });
+
+                              _loadAvailableMedicationRecords();
+                            },
+                          ),
+                      ],
                     ),
 
                     const SizedBox(height: 16),
 
-                    Row(
-                      children: [
+                    if (_isMedicationEditing) ...[
+                      const Text(
+                        '측정 상태',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      Row(
+                        children: [
+                          for (final status in ['BEFORE', 'AFTER']) ...[
+                            if (status == 'AFTER') const SizedBox(width: 10),
+                            Expanded(
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  setState(() {
+                                    _selectedMedicationStatus = status;
+                                    _medicationError = null;
+
+                                    if (status == 'BEFORE') {
+                                      _selectedMedicationRecordIds.clear();
+                                    }
+                                  });
+                                },
+                                child: Container(
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: _selectedMedicationStatus == status
+                                        ? const Color(0xFFEAF2FF)
+                                        : const Color(0xFFF7F8FA),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: _selectedMedicationStatus == status
+                                          ? const Color(0xFF3977E8)
+                                          : const Color(0xFFE5E7EB),
+                                      width: _selectedMedicationStatus == status ? 1.5 : 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        _selectedMedicationStatus == status
+                                            ? Icons.check_circle_rounded
+                                            : Icons.radio_button_unchecked_rounded,
+                                        size: 19,
+                                        color: _selectedMedicationStatus == status
+                                            ? const Color(0xFF3977E8)
+                                            : Colors.grey,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        status == 'BEFORE' ? '복약 전' : '복약 후',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: _selectedMedicationStatus == status
+                                              ? const Color(0xFF3977E8)
+                                              : const Color(0xFF374151),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+
+                      if (_selectedMedicationStatus == 'AFTER') ...[
+                        const SizedBox(height: 12),
                         const Text(
-                          '측정 상태',
+                          '연결할 복약 기록',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          lungSoundDetail!['medicationStatus'] == 'AFTER'
-                              ? '복약 후'
-                              : '복약 전',
-                          style: const TextStyle(
-                            fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF3678C8),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        if (_isMedicationLoading)
+                          const Center(
+                            child: CircularProgressIndicator(),
+                          )
+                        else if (_availableMedicationRecords.isEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 18,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF7F8FA),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Column(
+                                children: [
+                                  Icon(
+                                    Icons.medication_outlined,
+                                    size: 24,
+                                    color: Color(0xFF9CA3AF),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    '연결 가능한 복약 기록이 없습니다.',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    '측정 시간 이전에 등록한 복약 기록이 표시됩니다.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF9CA3AF),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            ..._availableMedicationRecords.map((record) {
+                              final id = (record['id'] as num).toInt();
+                              final name = record['medicineName']?.toString() ?? '약 이름 없음';
+                              final dose = record['dose']?.toString() ?? '';
+                              final unit = record['doseUnit']?.toString() ?? '';
+                              final takenAt = record['takenAt']?.toString() ?? '';
+                              final time = takenAt.length >= 16
+                                  ? takenAt.substring(11, 16)
+                                  : '';
 
-                        const SizedBox(height: 16),
-
-
-
+                              return CheckboxListTile(
+                                value: _selectedMedicationRecordIds.contains(id),
+                                activeColor: const Color(0xFF3678C8),
+                                contentPadding: EdgeInsets.zero,
+                                controlAffinity: ListTileControlAffinity.leading,
+                                title: Text(
+                                  name,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                subtitle: Text(
+                                  '$dose$unit · $time',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                onChanged: (checked) {
+                                  setState(() {
+                                    if (checked == true) {
+                                      if (!_selectedMedicationRecordIds.contains(id)) {
+                                        _selectedMedicationRecordIds.add(id);
+                                      }
+                                    } else {
+                                      _selectedMedicationRecordIds.remove(id);
+                                    }
+                                  });
+                                },
+                              );
+                            }),
                       ],
 
-                    ),
+                      const SizedBox(height: 16),
+
+                      if (_medicationError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _medicationError!,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _isMedicationSaving
+                                  ? null
+                                  : () {
+                                setState(() {
+                                  _isMedicationEditing = false;
+                                  _medicationError = null;
+                                });
+                                _loadLungSoundDetail();
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF6B7280),
+                                side: const BorderSide(
+                                  color: Color(0xFFD1D5DB),
+                                ),
+                                minimumSize: const Size(0, 44),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text('취소'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _isMedicationSaving || _isMedicationLoading
+                                  ? null
+                                  : _saveMedication,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF3977E8),
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor: const Color(0xFFBFCFEF),
+                                minimumSize: const Size(0, 44),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: _isMedicationSaving
+                                  ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                                  : const Text('저장'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          const Text(
+                            '측정 상태',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            lungSoundDetail!['medicationStatus'] == 'AFTER'
+                                ? '복약 후'
+                                : '복약 전',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF3678C8),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (lungSoundDetail!['medicationStatus'] == 'AFTER') ...[
+                        const Divider(),
+                        const SizedBox(height: 8),
+
+                        ...((lungSoundDetail!['medications'] as List?) ?? [])
+                            .map((medication) {
+                          final name = medication['medicineName'] ?? '약 이름 없음';
+                          final dose = medication['dose'];
+                          final unit = medication['doseUnit'] ?? '';
+                          final takenAt = medication['takenAt']?.toString() ?? '';
+                          final time = takenAt.length >= 16
+                              ? takenAt.substring(11, 16)
+                              : '';
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.medication_outlined,
+                                  color: Color(0xFF3678C8),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    '$name · $dose$unit',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                                Text(
+                                  time,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ],
 
                     const SizedBox(height: 12),
 
-                    if (lungSoundDetail!['medicationStatus'] == 'AFTER') ...[
-                      const Divider(),
-                      const SizedBox(height: 8),
-
-                      ...((lungSoundDetail!['medications'] as List?) ?? [])
-                          .map((medication) {
-                        final name = medication['medicineName'] ?? '약 이름 없음';
-                        final dose = medication['dose'];
-                        final unit = medication['doseUnit'] ?? '';
-                        final takenAt = medication['takenAt']?.toString() ?? '';
-                        final time = takenAt.length >= 16
-                            ? takenAt.substring(11, 16)
-                            : '';
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.medication_outlined,
-                                color: Color(0xFF3678C8),
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  '$name · $dose$unit',
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ),
-                              Text(
-                                time,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
                   ],
                 ),
               ),
@@ -775,31 +1271,57 @@ class _LungSoundDetailScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  // 제목 + 수정 아이콘
+                  Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.edit_note_rounded,
                         color: Color(0xFF3977E8),
                         size: 22,
                       ),
-                      SizedBox(width: 8),
-                      Text(
-                        '측정 메모',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          '메모',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
+
+                      if (!_isMemoEditing)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            color: Color(0xFF3977E8),
+                            size: 21,
+                          ),
+                          onPressed: lungSoundDetail == null
+                              ? null
+                              : () {
+                            setState(() {
+                              _isMemoEditing = true;
+                            });
+                          },
+                        ),
                     ],
                   ),
+
                   const SizedBox(height: 14),
 
+                  // 메모 입력 영역
                   TextField(
                     controller: _memoController,
+                    readOnly: !_isMemoEditing,
                     maxLines: 4,
-                    maxLength: 200,
+                    maxLength: _isMemoEditing ? 200 : null,
+                    showCursor: _isMemoEditing,
+                    enableInteractiveSelection: _isMemoEditing,
                     decoration: InputDecoration(
-                      hintText: '측정 당시의 증상이나 특이사항을 기록해 주세요.',
+                      hintText: _isMemoEditing
+                          ? '측정 당시의 증상이나 특이사항을 기록해 주세요.'
+                          : '작성된 메모가 없습니다.',
                       hintStyle: const TextStyle(
                         fontSize: 13,
                         color: Colors.grey,
@@ -814,42 +1336,65 @@ class _LungSoundDetailScreenState
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  // 수정 모드에서만 버튼 표시
+                  if (_isMemoEditing) ...[
+                    const SizedBox(height: 12),
 
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ElevatedButton(
-                      onPressed: _isMemoSaving || lungSoundDetail == null
-                          ? null
-                          : _saveMemo,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3977E8),
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey.shade300,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _isMemoSaving
+                                ? null
+                                : () {
+                              setState(() {
+                                _memoController.text = _originalMemo;
+                                _isMemoEditing = false;
+                              });
+
+                              FocusScope.of(context).unfocus();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.grey.shade700,
+                              side: BorderSide(color: Colors.grey.shade300),
+                              minimumSize: const Size(0, 44),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('취소'),
+                          ),
                         ),
-                      ),
-                      child: _isMemoSaving
-                          ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+
+                        const SizedBox(width: 10),
+
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _isMemoSaving ? null : _saveMemo,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3977E8),
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 44),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: _isMemoSaving
+                                ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                                : const Text('저장'),
+                          ),
                         ),
-                      )
-                          : const Text(
-                        '메모 저장',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      ],
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -884,10 +1429,12 @@ class _WavAudioSource extends StreamAudioSource {
 class LungWaveformPainter extends CustomPainter {
   final List<double> rmsValues;
   final Duration position;
+  final bool showTime;
 
   LungWaveformPainter({
     required this.rmsValues,
     required this.position,
+    required this.showTime,
   });
 
   @override
@@ -969,38 +1516,47 @@ class LungWaveformPainter extends CustomPainter {
       cursorPaint,
     );
 
-    // 현재 재생 시간
-    final totalSeconds = position.inSeconds;
-    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
-    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
+    if (showTime) {
+      final totalMilliseconds = position.inMilliseconds;
 
-    final timeText = '$minutes:$seconds';
+      final minutes =
+      (totalMilliseconds ~/ 60000).toString().padLeft(2, '0');
 
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: timeText,
-        style: const TextStyle(
-          color: Color(0xFF1D4ED8),
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+      final seconds =
+      ((totalMilliseconds ~/ 1000) % 60).toString().padLeft(2, '0');
+
+      final centiseconds =
+      ((totalMilliseconds % 1000) ~/ 10).toString().padLeft(2, '0');
+
+      final timeText = '$minutes:$seconds.$centiseconds';
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: timeText,
+          style: const TextStyle(
+            color: Colors.black54,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+        textDirection: TextDirection.ltr,
+      )
+        ..layout();
 
-// 가운데 세로선 위쪽에 시간 표시
-    textPainter.paint(
-      canvas,
-      Offset(
-        size.width / 2 - textPainter.width / 2,
-        4,
-      ),
-    );
+      textPainter.paint(
+        canvas,
+        Offset(
+          size.width / 2 - textPainter.width / 2,
+          4,
+        ),
+      );
+    }
   }
 
   @override
   bool shouldRepaint(covariant LungWaveformPainter oldDelegate) {
     return oldDelegate.position != position ||
-        oldDelegate.rmsValues != rmsValues;
+        oldDelegate.rmsValues != rmsValues ||
+        oldDelegate.showTime != showTime;
   }
 }

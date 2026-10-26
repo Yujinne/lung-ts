@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
 import 'medication_record_screen.dart';
+import 'widgets/app_calendar.dart';
 
 class MedicationRecordListScreen extends StatefulWidget {
   final DateTime selectedDate;
@@ -108,19 +109,19 @@ class _MedicationRecordListScreenState
   }
 
   Future<void> selectDate() async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await AppCalendar.show(
+      context,
       initialDate: selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      locale: const Locale('ko', 'KR'),
     );
 
     if (picked != null && mounted) {
       setState(() {
         selectedDate = picked;
       });
-      loadRecords();
+
+      await loadRecords();
     }
   }
 

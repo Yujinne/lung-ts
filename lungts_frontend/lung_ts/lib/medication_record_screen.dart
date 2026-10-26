@@ -5,6 +5,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'widgets/app_calendar.dart';
+import 'widgets/app_time_picker.dart';
+
 class MedicationRecordScreen extends StatefulWidget {
   final DateTime selectedDate;
   final Map<String, dynamic>? record;
@@ -91,23 +94,25 @@ class _MedicationRecordScreenState extends State<MedicationRecordScreen> {
   }
 
   Future<void> selectTakenAt() async {
-    final date = await showDatePicker(
-      context: context,
+    // 1. 공통 달력에서 날짜 선택
+    final date = await AppCalendar.show(
+      context,
       initialDate: takenAt,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      locale: const Locale('ko', 'KR'),
     );
 
     if (date == null || !mounted) return;
 
-    final time = await showTimePicker(
-      context: context,
+    // 2. 공통 시계에서 시간 선택
+    final time = await AppTimePicker.show(
+      context,
       initialTime: TimeOfDay.fromDateTime(takenAt),
     );
 
     if (time == null || !mounted) return;
 
+    // 3. 선택한 날짜와 시간을 합쳐서 저장
     setState(() {
       takenAt = DateTime(
         date.year,

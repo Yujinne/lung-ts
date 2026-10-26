@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'widgets/app_calendar.dart';
+import 'widgets/app_time_picker.dart';
 
 
 class DiaryScreen extends StatefulWidget {
@@ -54,103 +56,31 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
 
   Future<void> _selectDate() async {
-    final DateTime? pickedDate = await showDatePicker(
-      context: context,
+    final pickedDate = await AppCalendar.show(
+      context,
       initialDate: selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF377DCE),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Color(0xFF202936),
-            ),
-
-            dialogTheme: DialogThemeData(
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-
-            datePickerTheme: DatePickerThemeData(
-              backgroundColor: Colors.white,
-
-              // 상단 배경
-              headerBackgroundColor: const Color(0xFF377DCE),
-              headerForegroundColor: Colors.white,
-              cancelButtonStyle: TextButton.styleFrom(
-                foregroundColor: Colors.black,
-              ),
-              confirmButtonStyle: TextButton.styleFrom(
-                foregroundColor: Colors.black,
-              ),
-
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-
-              dayShape: WidgetStatePropertyAll(
-                RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
 
-    if (pickedDate != null && pickedDate != selectedDate) {
-      setState(() {
-        selectedDate = pickedDate;
-      });
-    }
+    if (pickedDate == null || !mounted) return;
+
+    setState(() {
+      selectedDate = pickedDate;
+    });
   }
 
   Future<void> _selectTime() async {
-    final TimeOfDay? pickedTime = await showTimePicker(
-      context: context,
+    final pickedTime = await AppTimePicker.show(
+      context,
       initialTime: selectedTime,
-
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF377DCE),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Color(0xFF202936),
-            ),
-            timePickerTheme: TimePickerThemeData(
-              backgroundColor: Colors.white,
-              dialBackgroundColor: const Color(0xFFF0F5FC),
-              dialHandColor: const Color(0xFF377DCE),
-              dialTextColor: const Color(0xFF202936),
-              hourMinuteColor: const Color(0xFFEAF3FF),
-              hourMinuteTextColor: const Color(0xFF202936),
-              dayPeriodColor: const Color(0xFFEAF3FF),
-              dayPeriodTextColor: const Color(0xFF377DCE),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
 
-    if (pickedTime != null && pickedTime != selectedTime) {
-      setState(() {
-        selectedTime = pickedTime;
-      });
-    }
+    if (pickedTime == null || !mounted) return;
+
+    setState(() {
+      selectedTime = pickedTime;
+    });
   }
 
   String getTimeSlot(TimeOfDay time) {
